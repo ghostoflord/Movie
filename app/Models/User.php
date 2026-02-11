@@ -3,6 +3,10 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+
+use App\AuthProvider;
+use App\Gender;
+use App\UserRole;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -44,6 +48,14 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+
+            // enum
+            'role'     => UserRole::class,
+            'gender'   => Gender::class,
+            'provider' => AuthProvider::class,
+
+            // primitive
+            'active'   => 'boolean',
         ];
     }
 }
