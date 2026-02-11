@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\AuthProvider;
+use App\UserRole;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -16,23 +18,22 @@ class AuthController extends Controller
             'name'     => 'required|string|max:255',
             'email'    => 'required|email|unique:users,email',
             'password' => 'required|min:6',
+            'gender'   => 'nullable|in:MALE,FEMALE,OTHER',
         ]);
 
         $user = User::create([
             'name'     => $data['name'],
             'email'    => $data['email'],
             'password' => Hash::make($data['password']),
+            'role'     => UserRole::USER,
+            'gender'   => $data['gender'] ?? null,
+            'provider' => AuthProvider::LOCAL,
+            'active'   => true,
         ]);
 
-        // tạo token luôn cho tiện
-        $token = $user->createToken('api-token')->plainTextToken;
-
-        return response()->json([
-            'message' => 'Register success',
-            'user'    => $user,
-            'token'   => $token,
-        ], 201);
+        return response()->json($user, 201);
     }
+
 
     // POST /api/login
     public function login(Request $request)
