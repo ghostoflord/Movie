@@ -1,9 +1,9 @@
 <?php
 
 
-namespace App;
+namespace App\Enum;
 
-enum AuthProvider: string
+enum AuthProviderEnum: string
 {
     case LOCAL = 'LOCAL';
     case GOOGLE = 'GOOGLE';

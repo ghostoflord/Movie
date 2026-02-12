@@ -4,9 +4,9 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 
-use App\AuthProvider;
-use App\Gender;
-use App\UserRole;
+use App\Enum\AuthProviderEnum;
+use App\Enum\GenderEnum;
+use App\Enum\UserRoleEnum;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -50,9 +50,9 @@ class User extends Authenticatable
             'password' => 'hashed',
 
             // enum
-            'role'     => UserRole::class,
-            'gender'   => Gender::class,
-            'provider' => AuthProvider::class,
+            'role'     => UserRoleEnum::class,
+            'gender'   => GenderEnum::class,
+            'provider' => AuthProviderEnum::class,
 
             // primitive
             'active'   => 'boolean',

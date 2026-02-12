@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use App\AuthProvider;
-use App\UserRole;
+use App\Enum\AuthProviderEnum;
+use App\Enum\UserRoleEnum;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -25,9 +25,9 @@ class AuthController extends Controller
             'name'     => $data['name'],
             'email'    => $data['email'],
             'password' => Hash::make($data['password']),
-            'role'     => UserRole::USER,
+            'role'     => UserRoleEnum::USER,
             'gender'   => $data['gender'] ?? null,
-            'provider' => AuthProvider::LOCAL,
+            'provider' => AuthProviderEnum::LOCAL,
             'active'   => true,
         ]);
 
