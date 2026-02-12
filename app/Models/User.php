@@ -58,4 +58,26 @@ class User extends Authenticatable
             'active'   => 'boolean',
         ];
     }
+
+     // ===== Relationships =====
+
+    public function watchHistories()
+    {
+        return $this->hasMany(WatchHistory::class);
+    }
+
+    public function favoriteMovies()
+    {
+        return $this->belongsToMany(Movie::class, 'favorites');
+    }
+
+    public function comments()
+    {
+        return $this->hasMany(Comment::class);
+    }
+
+    public function notifications()
+    {
+        return $this->hasMany(Notification::class);
+    }
 }
