@@ -36,27 +36,30 @@ class AuthController extends Controller
 
 
     // POST /api/login
-    public function login(Request $request)
-    {
-        $data = $request->validate([
-            'email' => 'required|email',
-            'password' => 'required',
-        ]);
-        $user = User::where('email', $data['email'])->first();
+public function login(Request $request)
+{
+    $data = $request->validate([
+        'email' => 'required|email',
+        'password' => 'required',
+    ]);
+    
+    $user = User::where('email', $data['email'])->first();
 
-        if (! $user || ! Hash::check($data['password'], $user->password)) {
-            return response()->json([
-                'message' => 'Invalid credentials'
-            ], 401);
-        }
-        $token = $user->createToken('api-token')->plainTextToken;
-
+    if (!$user || !Hash::check($data['password'], $user->password)) {
         return response()->json([
-            'token' => $token,
-            'user'  => $user,
-        ]);
+            'message' => 'Invalid credentials'
+        ], 401);
     }
-
+    
+    // Tạo token và lấy phần token string thuần
+    $token = explode('|', $user->createToken('api-token')->plainTextToken)[1] 
+        ?? $user->createToken('api-token')->plainTextToken;
+    
+    return response()->json([
+        'token' => $token,
+        'user'  => $user,
+    ]);
+}
     // POST /api/logout
     public function logout(Request $request)
     {
