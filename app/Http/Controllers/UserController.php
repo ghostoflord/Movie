@@ -13,9 +13,22 @@ class UserController extends Controller
      */
 
     // GET /api/users
+    // Họ làm đơn giản vầy nè
+    // public function index()
+    // {
+    //     return UserResource::collection(User::paginate());
+    // }
+    // Hoặc nếu muốn thêm meta
     public function index()
     {
-        return response()->json(User::all());
+        $users = User::paginate();
+        return response()->json([
+            'data' => $users->items(),
+            'meta' => [
+                'current_page' => $users->currentPage(),
+                'total' => $users->total()
+            ]
+        ]);
     }
 
     /**
