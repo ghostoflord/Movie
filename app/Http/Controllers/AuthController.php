@@ -36,37 +36,37 @@ class AuthController extends Controller
 
 
     // POST /api/login
-public function login(Request $request)
-{
-    $data = $request->validate([
-        'email' => 'required|email',
-        'password' => 'required',
-    ]);
-    
-    $user = User::where('email', $data['email'])->first();
+    public function login(Request $request)
+    {
+        $data = $request->validate([
+            'email' => 'required|email',
+            'password' => 'required',
+        ]);
 
-    if (!$user || !Hash::check($data['password'], $user->password)) {
+        $user = User::where('email', $data['email'])->first();
+
+        if (!$user || !Hash::check($data['password'], $user->password)) {
+            return response()->json([
+                'message' => 'Invalid credentials'
+            ], 401);
+        }
+
+        // Tạo token và lấy phần token string thuần
+        $token = explode('|', $user->createToken('api-token')->plainTextToken)[1]
+            ?? $user->createToken('api-token')->plainTextToken;
+
         return response()->json([
-            'message' => 'Invalid credentials'
-        ], 401);
+            'token' => $token,
+            'user'  => $user,
+        ]);
     }
-    
-    // Tạo token và lấy phần token string thuần
-    $token = explode('|', $user->createToken('api-token')->plainTextToken)[1] 
-        ?? $user->createToken('api-token')->plainTextToken;
-    
-    return response()->json([
-        'token' => $token,
-        'user'  => $user,
-    ]);
-}
     // POST /api/logout
     public function logout(Request $request)
     {
         $request->user()->currentAccessToken()->delete();
 
         return response()->json([
-            'message' => 'Logged out'
+            'message' => 'Logged out success'
         ]);
     }
 }
