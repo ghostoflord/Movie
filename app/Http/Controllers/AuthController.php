@@ -7,10 +7,10 @@ use App\Enum\UserRoleEnum;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Cookie;
 
 class AuthController extends Controller
 {
-
     // POST /api/register
     public function register(Request $request)
     {
@@ -34,8 +34,7 @@ class AuthController extends Controller
         return response()->json($user, 201);
     }
 
-
-    // POST /api/login
+    // POST /api/login - Set cookie thay vì trả token
     public function login(Request $request)
     {
         $data = $request->validate([
@@ -51,22 +50,47 @@ class AuthController extends Controller
             ], 401);
         }
 
-        // Tạo token và lấy phần token string thuần
-        $token = explode('|', $user->createToken('api-token')->plainTextToken)[1]
-            ?? $user->createToken('api-token')->plainTextToken;
+        // Tạo token
+        $token = $user->createToken('api-token')->plainTextToken;
+
+        // Set cookie httpOnly (không thể truy cập từ JavaScript)
+        $cookie = Cookie::make(
+            'access_token',    // Tên cookie
+            $token,            // Giá trị token
+            60 * 24 * 7,       // Thời gian sống (7 ngày)
+            '/',               // Path
+            null,              // Domain
+            false,             // Secure (true nếu dùng HTTPS)
+            true,              // HttpOnly không cho JS đọc
+            false,             // Raw
+            'Lax'              // SameSite
+        );
 
         return response()->json([
-            'token' => $token,
             'user'  => $user,
-        ]);
+            'message' => 'Login successful'
+        ])->withCookie($cookie);
     }
-    // POST /api/logout
+
+    // POST /api/logout - Xóa cookie
     public function logout(Request $request)
     {
+        // Xóa token trong database
         $request->user()->currentAccessToken()->delete();
+
+        // Xóa cookie
+        $cookie = Cookie::forget('access_token');
 
         return response()->json([
             'message' => 'Logged out success'
+        ])->withCookie($cookie);
+    }
+
+    // GET /api/user - Lấy user từ token trong cookie
+    public function user(Request $request)
+    {
+        return response()->json([
+            'data' => $request->user()
         ]);
     }
 }
