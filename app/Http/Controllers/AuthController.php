@@ -6,8 +6,10 @@ use App\Enum\AuthProviderEnum;
 use App\Enum\UserRoleEnum;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Cookie;
+use Laravel\Sanctum\PersonalAccessToken;
 
 class AuthController extends Controller
 {
@@ -86,11 +88,35 @@ class AuthController extends Controller
         ])->withCookie($cookie);
     }
 
-    // GET /api/user - Lấy user từ token trong cookie
-    public function user(Request $request)
+public function user(Request $request)
     {
+        $user = null;
+        
+        // Thử lấy từ cookie trước
+        $token = $request->cookie('access_token');
+        
+        if ($token) {
+            // Tìm token trong database
+            $accessToken = PersonalAccessToken::findToken($token);
+            
+            if ($accessToken) {
+                $user = $accessToken->tokenable;
+                // Login user vào hệ thống
+                Auth::login($user); // Sửa thành Auth::login()
+            }
+        }
+        
+        // Nếu cookie không có, thử từ bearer token
+        if (!$user) {
+            $user = $request->user();
+        }
+        
         return response()->json([
-            'data' => $request->user()
+            'data' => $user,
+            'debug' => [
+                'from_cookie' => $token ? true : false,
+                'has_cookie' => $request->hasCookie('access_token')
+            ]
         ]);
     }
 }
