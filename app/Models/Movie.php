@@ -10,14 +10,15 @@ class Movie extends Model
     use HasFactory;
 
     protected $fillable = [
-        'title',
-        'slug',
-        'description',
-        'thumbnail',
-        'trailer_url',
-        'views',
-        'is_featured',
-        'status',
+        'name', 'origin_name', 'slug', 'thumb_url', 'poster_url',
+        'description', 'year', 'quality', 'language', 'categories',
+        'actors', 'directors', 'status', 'episode_current', 'episode_total'
+    ];
+
+    protected $casts = [
+        'categories' => 'array',
+        'actors' => 'array',
+        'directors' => 'array',
     ];
 
     // ===== Relationships =====

@@ -10,17 +10,8 @@ class Episode extends Model
     use HasFactory;
 
     protected $fillable = [
-        'movie_id',
-        'episode_number',
-        'title',
-        'slug',
-        'video_url',
-        'duration',
-        'views',
-        'is_free',
-        'sort_order',
+        'movie_id', 'name', 'slug', 'embed_url', 'episode_number'
     ];
-
     protected function casts(): array
     {
         return [
