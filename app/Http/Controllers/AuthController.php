@@ -2,8 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Mail\ForgotPasswordOtpMail;
 use App\Mail\VerifyEmailMail;
+use App\Models\PasswordReset;
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Auth;
@@ -115,5 +118,98 @@ class AuthController extends Controller
         ]);
 
         return response()->json(['message' => 'Tài khoản đã được xác minh thành công.']);
+    }
+
+
+    public function forgotPassword(Request $request)
+    {
+        $request->validate([
+            'email' => 'required|email|exists:users,email',
+        ]);
+
+        $user = User::where('email', $request->email)->first();
+
+        // Tạo OTP 6 số ngẫu nhiên
+        $otp = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+
+        // Lưu OTP vào database (xóa OTP cũ nếu có)
+        PasswordReset::updateOrCreate(
+            ['email' => $user->email],
+            [
+                'otp' => $otp,
+                'expires_at' => Carbon::now()->addMinutes(15), // hết hạn sau 15 phút
+            ]
+        );
+
+        // Gửi email chứa OTP
+        Mail::to($user->email)->send(new ForgotPasswordOtpMail($otp));
+
+        return response()->json([
+            'message' => 'Mã OTP đã được gửi đến email của bạn.',
+        ]);
+    }
+
+    public function verifyOtp(Request $request)
+    {
+        $request->validate([
+            'email' => 'required|email|exists:users,email',
+            'otp'   => 'required|string|size:6',
+        ]);
+
+        $reset = PasswordReset::where('email', $request->email)
+            ->where('otp', $request->otp)
+            ->where('expires_at', '>', Carbon::now())
+            ->first();
+
+        if (!$reset) {
+            return response()->json([
+                'message' => 'Mã OTP không hợp lệ hoặc đã hết hạn.'
+            ], 400);
+        }
+
+        if ($reset->expires_at < Carbon::now()) {
+            $reset->delete(); // Xóa luôn nếu hết hạn
+            return response()->json(['message' => 'Mã OTP đã hết hạn.'], 400);
+        }
+
+        return response()->json([
+            'message' => 'OTP hợp lệ.',
+        ]);
+    }
+
+    public function resetPassword(Request $request)
+    {
+        $request->validate([
+            'email' => 'required|email|exists:users,email',
+            'otp'   => 'required|string|size:6',
+            'password' => 'required|string|min:6|confirmed', // confirmed yêu cầu có password_confirmation
+        ]);
+
+        // Kiểm tra OTP lần cuối
+        $reset = PasswordReset::where('email', $request->email)
+            ->where('otp', $request->otp)
+            ->where('expires_at', '>', Carbon::now())
+            ->first();
+
+        if (!$reset) {
+            return response()->json([
+                'message' => 'Mã OTP không hợp lệ hoặc đã hết hạn.'
+            ], 400);
+        }
+
+        // Cập nhật mật khẩu mới
+        $user = User::where('email', $request->email)->first();
+        $user->password = Hash::make($request->password);
+        $user->save();
+
+        // Xóa OTP đã dùng
+        $reset->delete();
+
+        // (Tuỳ chọn) Xóa tất cả token của user để đăng xuất khỏi các thiết bị khác
+        $user->tokens()->delete();
+
+        return response()->json([
+            'message' => 'Mật khẩu đã được thay đổi thành công.'
+        ]);
     }
 }
