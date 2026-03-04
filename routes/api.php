@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\CrawlController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CommentController;
 use App\Http\Controllers\EpisodeController;
@@ -38,10 +39,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('notifications', [NotificationController::class, 'index']);
     Route::post('notifications/{notificationId}/read', [NotificationController::class, 'markAsRead']);
-});
 
-// Route::get('/users', [UserController::class, 'index']);
-// Route::post('/users', [UserController::class, 'store']);
-// Route::get('/users/{id}', [UserController::class, 'show']);
-// Route::put('/users/{id}', [UserController::class, 'update']);
-// Route::delete('/users/{id}', [UserController::class, 'destroy']);
+    Route::post('/admin/crawl-movies', [CrawlController::class, 'start']);
+    Route::get('/admin/crawl-status', [CrawlController::class, 'status']);
+});
