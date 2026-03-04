@@ -164,9 +164,11 @@
         </div>
         <div class="content">
             <h2>Xác thực OTP</h2>
-            <p>Chào bạn,</p>
-            <p>Chúng tôi nhận được yêu cầu đặt lại mật khẩu cho tài khoản <strong>{{ $email ?? 'của bạn' }}</strong> tại
-                MovieApp. Vui lòng sử dụng mã OTP dưới đây để hoàn tất quá trình:</p>
+            <p style="text-align: center; color: #888;">Chào bạn,</p>
+            <p style="text-align: center; color: #888;">Chúng tôi nhận được yêu cầu đặt lại mật khẩu cho tài khoản
+                <strong>{{ $email ?? 'của bạn' }}</strong> tại
+                MovieApp. Vui lòng sử dụng mã OTP dưới đây để hoàn tất quá trình:
+            </p>
 
             <div class="otp-box">
                 <div class="otp-code">{{ $otp }}</div>
