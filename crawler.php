@@ -26,50 +26,50 @@ echo "Bắt đầu crawl {$pages} trang...\n\n";
 
 for ($page = 1; $page <= $pages; $page++) {
     echo "Trang {$page}/{$pages}...\n";
-    
+
     // Gọi API lấy danh sách phim
-    $response = Http::get("", [
+    $response = Http::get("https://ophim1.com/danh-sach/phim-moi-cap-nhat", [
         'page' => $page
     ]);
-    
+
     if (!$response->successful()) {
         echo "Lỗi kết nối trang {$page}\n";
         continue;
     }
-    
+
     $data = $response->json();
-    
+
     if (!isset($data['items'])) {
         echo "Không có dữ liệu\n";
         continue;
     }
-    
+
     foreach ($data['items'] as $item) {
         $slug = $item['slug'] ?? null;
         if (!$slug) continue;
-        
+
         echo "Đang xử lý: {$item['name']}... ";
-        
+
         // Gọi API chi tiết phim
         $detailResponse = Http::get("https://ophim1.com/phim/{$slug}");
-        
+
         if (!$detailResponse->successful()) {
             echo "Lỗi\n";
             continue;
         }
-        
+
         $detail = $detailResponse->json();
-        
+
         if (!isset($detail['movie'])) {
             echo "Dữ liệu lỗi\n";
             continue;
         }
-        
+
         $movieData = $detail['movie'];
         $episodes = $detail['episodes'] ?? [];
-        
+
         DB::beginTransaction();
-        
+
         try {
             // Tìm hoặc tạo phim
             $movie = Movie::updateOrCreate(
@@ -88,18 +88,18 @@ for ($page = 1; $page <= $pages; $page++) {
                     'episode_total' => $movieData['episode_total'] ?? null,
                 ]
             );
-            
+
             $episodeCount = 0;
-            
+
             // Xử lý episodes
             foreach ($episodes as $episodeGroup) {
                 if (!isset($episodeGroup['server_data'])) continue;
-                
+
                 foreach ($episodeGroup['server_data'] as $ep) {
                     // Lấy số tập từ tên
                     preg_match('/(\d+)/', $ep['name'], $matches);
                     $epNumber = $matches[1] ?? 1;
-                    
+
                     Episode::updateOrCreate(
                         [
                             'movie_id' => $movie->id,
@@ -115,19 +115,18 @@ for ($page = 1; $page <= $pages; $page++) {
                     $episodeCount++;
                 }
             }
-            
+
             DB::commit();
             echo "{$episodeCount} tập\n";
-            
         } catch (\Exception $e) {
             DB::rollBack();
             echo "Lỗi: " . $e->getMessage() . "\n";
         }
-        
+
         // Delay 1 giây để tránh quá tải API
         sleep(1);
     }
-    
+
     // Delay giữa các trang
     if ($page < $pages) {
         echo "Chờ 2 giây trước trang tiếp theo...\n";
