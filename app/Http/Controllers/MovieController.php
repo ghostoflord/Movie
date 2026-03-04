@@ -2,19 +2,38 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Resources\MovieResource;
 use App\Models\Movie;
 use Illuminate\Http\Request;
 
 class MovieController extends Controller
 {
     // GET /api/movies
-    public function index()
+    public function index(Request $request)
     {
-        $movies = Movie::with('episodes')->paginate(10);
+        // Lấy page và per_page từ request, có giá trị mặc định
+        $perPage = $request->query('per_page', 10); // Mặc định 10
+        $page = $request->query('page', 1); // Mặc định trang 1
 
-        return response()->json($movies);
+        // Giới hạn perPage trong khoảng hợp lý (tránh quá tải)
+        $perPage = min($perPage, 100);
+        $perPage = max($perPage, 1); // Đảm bảo ít nhất 1
+
+        $movies = Movie::with('episodes')
+            ->paginate($perPage, ['*'], 'page', $page);
+
+        return response()->json([
+            'data' => MovieResource::collection($movies->items()),
+            'meta' => [
+                'current_page' => $movies->currentPage(),
+                'last_page' => $movies->lastPage(),
+                'per_page' => $movies->perPage(),
+                'total' => $movies->total(),
+                'from' => $movies->firstItem(),
+                'to' => $movies->lastItem(),
+            ],
+        ]);
     }
-
     // POST /api/movies
     public function store(Request $request)
     {
