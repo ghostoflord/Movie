@@ -26,6 +26,7 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'active',
     ];
 
     /**
@@ -59,7 +60,7 @@ class User extends Authenticatable
         ];
     }
 
-     // ===== Relationships =====
+    // ===== Relationships =====
 
     public function watchHistories()
     {
