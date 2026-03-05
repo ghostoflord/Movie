@@ -29,7 +29,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('users', UserController::class);
 
     Route::apiResource('movies', MovieController::class);
-    Route::post('episodes', [EpisodeController::class, 'store']);
 
     Route::post('comments', [CommentController::class, 'store']);
 
@@ -43,4 +42,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/admin/crawl-movies', [CrawlController::class, 'start']);
     Route::get('/admin/crawl-status', [CrawlController::class, 'status']);
     Route::post('/admin/crawl/category', [CrawlController::class, 'crawlCategory']);
+
+    Route::get('/episodes', [EpisodeController::class, 'index']);
+    Route::post('/episodes', [EpisodeController::class, 'store']);
+    Route::get('/episodes/{id}', [EpisodeController::class, 'show']);
+    Route::put('/episodes/{id}', [EpisodeController::class, 'update']);
+    Route::delete('/episodes/{id}', [EpisodeController::class, 'destroy']);
+    Route::get('/movies/{movieId}/episodes', [EpisodeController::class, 'getByMovie']);
 });
