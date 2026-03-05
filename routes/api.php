@@ -42,4 +42,5 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::post('/admin/crawl-movies', [CrawlController::class, 'start']);
     Route::get('/admin/crawl-status', [CrawlController::class, 'status']);
+    Route::post('/admin/crawl/category', [CrawlController::class, 'crawlCategory']);
 });
