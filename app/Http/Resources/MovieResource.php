@@ -15,16 +15,42 @@ class MovieResource extends JsonResource
     public function toArray($request)
     {
         return [
+            // Basic info
             'id' => $this->id,
-            'title' => $this->title,
+            'name' => $this->name,
+            'origin_name' => $this->origin_name,
             'slug' => $this->slug,
+
+            // Images
+            'thumb_url' => $this->thumb_url,
+            'poster_url' => $this->poster_url,
+
+            // Description & details
             'description' => $this->description,
             'year' => $this->year,
+
+            // Quality & language
+            'quality' => $this->quality,
+            'language' => $this->language,
+
+            // Arrays (JSON fields)
+            'categories' => $this->categories,
+            'actors' => $this->actors,
+            'directors' => $this->directors,
+
+            // Status & episodes
+            'status' => $this->status,
             'episode_current' => $this->episode_current,
             'episode_total' => $this->episode_total,
-            'views' => $this->views,
-            // Chỉ lấy các field cần từ episodes
+
+            // Timestamps
+            'created_at' => $this->created_at,
+            'updated_at' => $this->updated_at,
+
+            // Relationships
             'episodes' => EpisodeResource::collection($this->whenLoaded('episodes')),
+            'comments' => CommentResource::collection($this->whenLoaded('comments')),
+            'favorited_by_count' => $this->whenCounted('favoritedByUsers'),
         ];
     }
 }

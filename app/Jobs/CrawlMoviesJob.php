@@ -11,7 +11,7 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use GuzzleHttp\Client;          // <-- Import Guzzle
+use GuzzleHttp\Client;
 use GuzzleHttp\Exception\RequestException;
 
 class CrawlMoviesJob implements ShouldQueue
@@ -19,7 +19,7 @@ class CrawlMoviesJob implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public $pages;
-    public $timeout = 1200; // 20 phút
+    public $timeout = 1200;
 
     public function __construct($pages = 3)
     {
@@ -30,7 +30,6 @@ class CrawlMoviesJob implements ShouldQueue
     {
         Log::info("Bắt đầu crawl {$this->pages} trang");
 
-        // Tạo Guzzle client với User-Agent
         $client = new Client([
             'timeout' => 30,
             'headers' => [
@@ -42,7 +41,6 @@ class CrawlMoviesJob implements ShouldQueue
             Log::info("Crawl trang {$page}...");
 
             try {
-                // Gọi API danh sách phim
                 $response = $client->get("https://ophim1.com/danh-sach/phim-moi-cap-nhat", [
                     'query' => ['page' => $page]
                 ]);
@@ -67,7 +65,6 @@ class CrawlMoviesJob implements ShouldQueue
                     Log::info("Xử lý phim: " . ($item['name'] ?? 'Không tên'));
 
                     try {
-                        // Gọi API chi tiết phim
                         $detailResponse = $client->get("https://ophim1.com/phim/{$slug}");
 
                         if ($detailResponse->getStatusCode() !== 200) {
@@ -85,24 +82,60 @@ class CrawlMoviesJob implements ShouldQueue
                         $movieData = $detail['movie'];
                         $episodes = $detail['episodes'] ?? [];
 
+                        // ========== XỬ LÝ CATEGORIES ==========
+                        $categories = [];
+                        if (isset($movieData['category']) && is_array($movieData['category'])) {
+                            foreach ($movieData['category'] as $cat) {
+                                if (isset($cat['name'])) {
+                                    $categories[] = $cat['name'];
+                                }
+                            }
+                        }
+
+                        // ========== XỬ LÝ ACTORS ==========
+                        $actors = [];
+                        if (isset($movieData['actor']) && is_array($movieData['actor'])) {
+                            $actors = $movieData['actor'];
+                        }
+
+                        // ========== XỬ LÝ DIRECTORS ==========
+                        $directors = [];
+                        if (isset($movieData['director']) && is_array($movieData['director'])) {
+                            $directors = $movieData['director'];
+                        }
+
+                        // ========== XỬ LÝ LANGUAGE ==========
+                        $language = null;
+                        if (isset($movieData['lang'])) {
+                            $language = $movieData['lang'];
+                        } elseif (isset($movieData['language'])) {
+                            $language = $movieData['language'];
+                        } elseif (isset($movieData['country']) && is_array($movieData['country']) && count($movieData['country']) > 0) {
+                            // Fallback to country name if no language
+                            $countries = array_column($movieData['country'], 'name');
+                            $language = implode(', ', $countries);
+                        }
+
                         DB::beginTransaction();
 
                         try {
-                            // Tìm hoặc tạo phim
                             $movie = Movie::updateOrCreate(
                                 ['slug' => $movieData['slug']],
                                 [
-                                    'name'           => $movieData['name'] ?? null,
-                                    'origin_name'    => $movieData['origin_name'] ?? null,
-                                    'thumb_url'      => $movieData['thumb_url'] ?? null,
-                                    'poster_url'     => $movieData['poster_url'] ?? null,
-                                    'description'    => $movieData['content'] ?? null,
-                                    'year'           => $movieData['year'] ?? null,
-                                    'quality'        => $movieData['quality'] ?? null,
-                                    'language'       => $movieData['language'] ?? null,
-                                    'status'         => $movieData['status'] ?? 'ongoing',
+                                    'name'            => $movieData['name'] ?? null,
+                                    'origin_name'     => $movieData['origin_name'] ?? null,
+                                    'thumb_url'       => $movieData['thumb_url'] ?? null,
+                                    'poster_url'      => $movieData['poster_url'] ?? null,
+                                    'description'     => $movieData['content'] ?? null,
+                                    'year'            => $movieData['year'] ?? null,
+                                    'quality'         => $movieData['quality'] ?? null,
+                                    'language'        => $language,
+                                    'categories'      => $categories,      // Đã xử lý
+                                    'actors'          => $actors,          // Đã xử lý
+                                    'directors'       => $directors,       // Đã xử lý
+                                    'status'          => $movieData['status'] ?? 'ongoing',
                                     'episode_current' => $movieData['episode_current'] ?? null,
-                                    'episode_total'  => $movieData['episode_total'] ?? null,
+                                    'episode_total'   => $movieData['episode_total'] ?? null,
                                 ]
                             );
 
@@ -113,8 +146,16 @@ class CrawlMoviesJob implements ShouldQueue
                                 if (!isset($episodeGroup['server_data'])) continue;
 
                                 foreach ($episodeGroup['server_data'] as $ep) {
-                                    preg_match('/(\d+)/', $ep['name'], $matches);
-                                    $epNumber = $matches[1] ?? 1;
+                                    // Xử lý tên tập
+                                    $epName = $ep['name'] ?? '';
+                                    $epNumber = 1;
+
+                                    if (is_numeric($epName)) {
+                                        $epNumber = (int)$epName;
+                                    } else {
+                                        preg_match('/(\d+)/', $epName, $matches);
+                                        $epNumber = isset($matches[1]) ? (int)$matches[1] : 1;
+                                    }
 
                                     Episode::updateOrCreate(
                                         [
@@ -122,9 +163,9 @@ class CrawlMoviesJob implements ShouldQueue
                                             'episode_number' => $epNumber
                                         ],
                                         [
-                                            'name'          => $ep['name'],
-                                            'slug'          => "tap-{$epNumber}",
-                                            'embed_url'     => $ep['link_embed'] ?? $ep['link_m3u8'] ?? '',
+                                            'name'           => $epName,
+                                            'slug'           => "tap-{$epNumber}",
+                                            'embed_url'      => $ep['link_embed'] ?? $ep['link_m3u8'] ?? '',
                                             'episode_number' => $epNumber
                                         ]
                                     );
@@ -142,14 +183,14 @@ class CrawlMoviesJob implements ShouldQueue
                         Log::error("Lỗi HTTP khi lấy chi tiết phim {$slug}: " . $e->getMessage());
                     }
 
-                    sleep(1); // Delay giữa các phim
+                    sleep(1);
                 }
             } catch (RequestException $e) {
                 Log::error("Lỗi HTTP khi crawl trang {$page}: " . $e->getMessage());
             }
 
             if ($page < $this->pages) {
-                sleep(2); // Delay giữa các trang
+                sleep(2);
             }
         }
 
