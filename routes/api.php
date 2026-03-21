@@ -8,6 +8,7 @@ use App\Http\Controllers\FavoriteController;
 use App\Http\Controllers\MovieController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\RecommendationController;
 use App\Http\Controllers\WatchHistoryController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -40,6 +41,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/favorites/{movieId}', [FavoriteController::class, 'update']);
 
     Route::post('watch-history', [WatchHistoryController::class, 'store']);
+    Route::get('recommendations', [RecommendationController::class, 'forYou']);
 
     Route::get('notifications', [NotificationController::class, 'index']);
     Route::post('notifications/{notificationId}/read', [NotificationController::class, 'markAsRead']);
