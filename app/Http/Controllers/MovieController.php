@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Resources\MovieResource;
 use App\Models\Movie;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class MovieController extends Controller
 {
@@ -37,15 +38,27 @@ class MovieController extends Controller
     // POST /api/movies
     public function store(Request $request)
     {
-        $data = $request->validate([
-            'title' => 'required|string',
-            'slug' => 'required|string|unique:movies,slug',
-            'description' => 'nullable|string',
-        ]);
+        $data = $request->validate($this->movieRules());
 
         $movie = Movie::create($data);
 
-        return response()->json($movie, 201);
+        return response()->json([
+            'data' => new MovieResource($movie->load('episodes')),
+        ], 201);
+    }
+
+    // PUT/PATCH /api/movies/{id}
+    public function update(Request $request, $id)
+    {
+        $movie = Movie::findOrFail($id);
+
+        $data = $request->validate($this->movieRules(forUpdate: true, movieId: $movie->id));
+
+        $movie->update($data);
+
+        return response()->json([
+            'data' => new MovieResource($movie->fresh()->load('episodes')),
+        ]);
     }
 
     // GET /api/movies/{id}
@@ -62,5 +75,39 @@ class MovieController extends Controller
         Movie::findOrFail($id)->delete();
 
         return response()->json(['message' => 'Deleted']);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function movieRules(bool $forUpdate = false, ?int $movieId = null): array
+    {
+        $slugRule = Rule::unique('movies', 'slug');
+        if ($forUpdate && $movieId !== null) {
+            $slugRule = $slugRule->ignore($movieId);
+        }
+
+        $required = $forUpdate ? 'sometimes' : 'required';
+
+        return [
+            'name' => [$required, 'string', 'max:255'],
+            'origin_name' => 'nullable|string|max:255',
+            'slug' => [$required, 'string', 'max:255', $slugRule],
+            'thumb_url' => 'nullable|string|max:2048',
+            'poster_url' => 'nullable|string|max:2048',
+            'description' => 'nullable|string',
+            'year' => 'nullable|integer|min:1800|max:2100',
+            'quality' => 'nullable|string|max:50',
+            'language' => 'nullable|string|max:50',
+            'categories' => 'nullable|array',
+            'categories.*' => 'string|max:255',
+            'actors' => 'nullable|array',
+            'actors.*' => 'string|max:255',
+            'directors' => 'nullable|array',
+            'directors.*' => 'string|max:255',
+            'status' => 'nullable|string|max:50',
+            'episode_current' => 'nullable|string|max:100',
+            'episode_total' => 'nullable|string|max:100',
+        ];
     }
 }
