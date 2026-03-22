@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\CrawlController;
+use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CommentController;
 use App\Http\Controllers\EpisodeController;
@@ -26,13 +27,20 @@ Route::post('/verify-otp', [AuthController::class, 'verifyOtp']);
 Route::post('/reset-password', [AuthController::class, 'resetPassword']);
 
 Route::get('/favorites/user/{userId}', [FavoriteController::class, 'getByUserId']);
+
+Route::get('/episodes', [EpisodeController::class, 'index']);
+Route::post('/episodes', [EpisodeController::class, 'store']);
+Route::get('/episodes/{id}', [EpisodeController::class, 'show']);
+Route::put('/episodes/{id}', [EpisodeController::class, 'update']);
+Route::delete('/episodes/{id}', [EpisodeController::class, 'destroy']);
+Route::get('/movies/{movieId}/episodes', [EpisodeController::class, 'getByMovie']);
+Route::apiResource('movies', MovieController::class);
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/user', [AuthController::class, 'user']);
     Route::post('/logout', [AuthController::class, 'logout']);
 
     Route::apiResource('users', UserController::class);
 
-    Route::apiResource('movies', MovieController::class);
 
     Route::post('comments', [CommentController::class, 'store']);
 
@@ -46,14 +54,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('notifications', [NotificationController::class, 'index']);
     Route::post('notifications/{notificationId}/read', [NotificationController::class, 'markAsRead']);
 
+    Route::get('/admin/dashboard', [DashboardController::class, 'stats']);
     Route::post('/admin/crawl-movies', [CrawlController::class, 'start']);
     Route::get('/admin/crawl-status', [CrawlController::class, 'status']);
     Route::post('/admin/crawl/category', [CrawlController::class, 'crawlCategory']);
 
-    Route::get('/episodes', [EpisodeController::class, 'index']);
-    Route::post('/episodes', [EpisodeController::class, 'store']);
-    Route::get('/episodes/{id}', [EpisodeController::class, 'show']);
-    Route::put('/episodes/{id}', [EpisodeController::class, 'update']);
-    Route::delete('/episodes/{id}', [EpisodeController::class, 'destroy']);
-    Route::get('/movies/{movieId}/episodes', [EpisodeController::class, 'getByMovie']);
+
 });
