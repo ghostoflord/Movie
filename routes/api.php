@@ -2,62 +2,67 @@
 
 use App\Http\Controllers\Admin\CrawlController;
 use App\Http\Controllers\Admin\DashboardController;
+use App\Http\Controllers\ActorController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\CommentController;
 use App\Http\Controllers\EpisodeController;
 use App\Http\Controllers\FavoriteController;
 use App\Http\Controllers\MovieController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\RatingController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\RecommendationController;
+use App\Http\Controllers\ServerController;
 use App\Http\Controllers\WatchHistoryController;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
-// Route::get('/user', function (Request $request) {
-//     return $request->user();
-// })->middleware('auth:sanctum');
+Route::post('/login', [AuthController::class, 'login']); // đăng nhập -> trả Bearer token
+Route::post('/register', [AuthController::class, 'register']); // đăng ký (mặc định inactive, cần verify email)
 
-Route::post('/login', [AuthController::class, 'login']);
-Route::post('/register', [AuthController::class, 'register']);
+Route::get('/verify-email/{id}/{hash}', [AuthController::class, 'verify'])->name('verification.verify'); // verify email (signed URL)
+Route::post('/forgot-password', [AuthController::class, 'forgotPassword']); // quên mật khẩu: xin OTP
+Route::post('/verify-otp', [AuthController::class, 'verifyOtp']); // quên mật khẩu: xác thực OTP
+Route::post('/reset-password', [AuthController::class, 'resetPassword']); // quên mật khẩu: đặt lại mật khẩu
 
-Route::get('/verify-email/{id}/{hash}', [AuthController::class, 'verify'])->name('verification.verify');
-Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
-Route::post('/verify-otp', [AuthController::class, 'verifyOtp']);
-Route::post('/reset-password', [AuthController::class, 'resetPassword']);
+Route::get('/favorites/user/{userId}', [FavoriteController::class, 'getByUserId']); // favorites theo userId (public)
 
-Route::get('/favorites/user/{userId}', [FavoriteController::class, 'getByUserId']);
+Route::get('/episodes', [EpisodeController::class, 'index']); // list episodes (public)
+Route::post('/episodes', [EpisodeController::class, 'store']); // tạo episode (public)
+Route::get('/episodes/{id}', [EpisodeController::class, 'show']); // chi tiết episode (public)
+Route::put('/episodes/{id}', [EpisodeController::class, 'update']); // cập nhật episode (public)
+Route::delete('/episodes/{id}', [EpisodeController::class, 'destroy']); // xoá episode (public)
+Route::get('/movies/{movieId}/episodes', [EpisodeController::class, 'getByMovie']); // episodes theo movie (public)
 
-Route::get('/episodes', [EpisodeController::class, 'index']);
-Route::post('/episodes', [EpisodeController::class, 'store']);
-Route::get('/episodes/{id}', [EpisodeController::class, 'show']);
-Route::put('/episodes/{id}', [EpisodeController::class, 'update']);
-Route::delete('/episodes/{id}', [EpisodeController::class, 'destroy']);
-Route::get('/movies/{movieId}/episodes', [EpisodeController::class, 'getByMovie']);
-Route::apiResource('movies', MovieController::class);
-Route::middleware('auth:sanctum')->group(function () {
-    Route::get('/user', [AuthController::class, 'user']);
-    Route::post('/logout', [AuthController::class, 'logout']);
+Route::apiResource('movies', MovieController::class); // CRUD movies (public)
 
-    Route::apiResource('users', UserController::class);
+Route::middleware('auth:sanctum')->group(function () { // require Authorization: Bearer <token>
+    Route::get('/user', [AuthController::class, 'user']); // lấy thông tin user hiện tại
+    Route::post('/logout', [AuthController::class, 'logout']); // logout (xóa token)
 
+    Route::apiResource('users', UserController::class); // CRUD users
+    Route::apiResource('categories', CategoryController::class); // CRUD categories
+    Route::apiResource('actors', ActorController::class); // CRUD actors
+    Route::apiResource('servers', ServerController::class); // CRUD servers
 
-    Route::post('comments', [CommentController::class, 'store']);
+    Route::apiResource('ratings', RatingController::class)->only(['index', 'store', 'show', 'update', 'destroy']); // CRUD ratings (chỉ của user hiện tại)
 
-    Route::get('/favorites', [FavoriteController::class, 'index']);
-    Route::post('/favorites/{movieId}', [FavoriteController::class, 'toggle']);
-    Route::put('/favorites/{movieId}', [FavoriteController::class, 'update']);
+    Route::post('comments', [CommentController::class, 'store']); // tạo comment
 
-    Route::post('watch-history', [WatchHistoryController::class, 'store']);
-    Route::get('recommendations', [RecommendationController::class, 'forYou']);
+    Route::get('/favorites', [FavoriteController::class, 'index']); // list favorites của user hiện tại
+    Route::post('/favorites/{movieId}', [FavoriteController::class, 'toggle']); // toggle favorite
+    Route::put('/favorites/{movieId}', [FavoriteController::class, 'update']); // update favorite (pivot)
 
-    Route::get('notifications', [NotificationController::class, 'index']);
-    Route::post('notifications/{notificationId}/read', [NotificationController::class, 'markAsRead']);
+    Route::post('watch-history', [WatchHistoryController::class, 'store']); // lưu tiến độ xem (episode_id)
+    Route::get('recommendations', [RecommendationController::class, 'forYou']); // gợi ý phim theo thể loại
 
-    Route::get('/admin/dashboard', [DashboardController::class, 'stats']);
-    Route::post('/admin/crawl-movies', [CrawlController::class, 'start']);
-    Route::get('/admin/crawl-status', [CrawlController::class, 'status']);
-    Route::post('/admin/crawl/category', [CrawlController::class, 'crawlCategory']);
+    Route::get('notifications', [NotificationController::class, 'index']); // list notifications
+    Route::post('notifications/{notificationId}/read', [NotificationController::class, 'markAsRead']); // đánh dấu đã đọc
+
+    Route::get('/admin/dashboard', [DashboardController::class, 'stats']); // dashboard stats
+    Route::post('/admin/crawl-movies', [CrawlController::class, 'start']); // start crawl movies
+    Route::get('/admin/crawl-status', [CrawlController::class, 'status']); // crawl status
+    Route::post('/admin/crawl/category', [CrawlController::class, 'crawlCategory']); // crawl theo category
 
 
 });
