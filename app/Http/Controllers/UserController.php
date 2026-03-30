@@ -2,9 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Enum\GenderEnum;
+use App\Enum\UserRoleEnum;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rule;
 
 class UserController extends Controller
 {
@@ -40,12 +43,19 @@ class UserController extends Controller
         $data = $request->validate([
             'name' => 'required|string|max:225',
             'email' => 'required|email|unique:users,email',
-            'password' => 'required|min:6'
+            'password' => 'required|min:6',
+            'role' => ['sometimes', Rule::in(array_map(fn (UserRoleEnum $e) => $e->value, UserRoleEnum::cases()))],
+            'active' => 'sometimes|boolean',
+            'gender' => ['sometimes', 'nullable', Rule::in(array_map(fn (GenderEnum $e) => $e->value, GenderEnum::cases()))],
         ]);
+
         $user = User::create([
             'name' => $data['name'],
             'email' => $data['email'],
             'password' => Hash::make($data['password']),
+            'role' => $data['role'] ?? UserRoleEnum::USER->value,
+            'active' => $data['active'] ?? true,
+            'gender' => $data['gender'] ?? null,
         ]);
         return response()->json($user, 200);
     }
@@ -68,15 +78,18 @@ class UserController extends Controller
     {
         $user = User::findOrFail($id);
         $data = $request->validate([
-            'user' => 'sometimes |string| max:225',
+            'name' => 'sometimes|string|max:225',
             'email' => 'sometimes|email|unique:users,email,' . $id,
             'password' => 'sometimes|min:6',
+            'role' => ['sometimes', Rule::in(array_map(fn (UserRoleEnum $e) => $e->value, UserRoleEnum::cases()))],
+            'active' => 'sometimes|boolean',
+            'gender' => ['sometimes', 'nullable', Rule::in(array_map(fn (GenderEnum $e) => $e->value, GenderEnum::cases()))],
         ]);
         if (isset($data['password'])) {
             $data['password'] = Hash::make($data['password']);
         }
         $user->update($data);
-        return response()->json($user);
+        return response()->json($user->fresh());
     }
 
     /**
