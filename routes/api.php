@@ -8,6 +8,7 @@ use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\CommentController;
 use App\Http\Controllers\EpisodeController;
 use App\Http\Controllers\FavoriteController;
+use App\Http\Controllers\MovieCategoryBrowseController;
 use App\Http\Controllers\MovieController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\RatingController;
@@ -35,6 +36,9 @@ Route::delete('/episodes/{id}', [EpisodeController::class, 'destroy']); // xoá 
 Route::get('/movies/{movieId}/episodes', [EpisodeController::class, 'getByMovie']); // episodes theo movie (public)
 
 Route::apiResource('movies', MovieController::class); // CRUD movies (public)
+
+Route::get('/movie-categories', [MovieCategoryBrowseController::class, 'index']); // thể loại từ JSON phim (unique + đếm phim)
+Route::get('/movie-categories/movies', [MovieCategoryBrowseController::class, 'movies']); // phim theo thể loại (?category=...) + episodes
 
 Route::middleware('auth:sanctum')->group(function () { // require Authorization: Bearer <token>
     Route::get('/user', [AuthController::class, 'user']); // lấy thông tin user hiện tại
