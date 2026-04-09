@@ -29,6 +29,7 @@ class User extends Authenticatable
         'active',
         'role',
         'gender',
+        'provider',
     ];
 
     /**
@@ -39,6 +40,19 @@ class User extends Authenticatable
     protected $hidden = [
         'password',
         'remember_token',
+    ];
+
+    /**
+     * Thuộc tính ảo khi serialize JSON (login, GET /api/user, …).
+     *
+     * Nguồn sự thật (giống Laravel / dự án thật): cột `email_verified_at`.
+     * - null  → chưa xác minh email
+     * - có datetime → đã bấm link xác minh trong email (route verify)
+     *
+     * @var list<string>
+     */
+    protected $appends = [
+        'is_email_verified',
     ];
 
     /**
@@ -82,5 +96,13 @@ class User extends Authenticatable
     public function notifications()
     {
         return $this->hasMany(Notification::class);
+    }
+
+    /**
+     * Đồng bộ với Laravel MustVerifyEmail: chỉ tin vào `email_verified_at`.
+     */
+    public function getIsEmailVerifiedAttribute(): bool
+    {
+        return $this->email_verified_at !== null;
     }
 }

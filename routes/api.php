@@ -19,6 +19,7 @@ use App\Http\Controllers\WatchHistoryController;
 use Illuminate\Support\Facades\Route;
 
 Route::post('/login', [AuthController::class, 'login']); // đăng nhập -> trả Bearer token
+Route::post('/login/google', [AuthController::class, 'loginGoogle']); // đăng nhập google (FE gửi id_token)
 Route::post('/register', [AuthController::class, 'register']); // đăng ký (mặc định inactive, cần verify email)
 
 Route::get('/verify-email/{id}/{hash}', [AuthController::class, 'verify'])->name('verification.verify'); // verify email (signed URL)
