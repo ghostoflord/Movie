@@ -10,8 +10,10 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Str;
 
 class AuthController extends Controller
 {
@@ -44,6 +46,92 @@ class AuthController extends Controller
             'user'       => $user,
             'token'      => $cleanToken,
             'token_type' => 'Bearer'
+        ]);
+    }
+
+    // POST /api/login/google
+    // Frontend gửi lên: { id_token: "..." }
+    public function loginGoogle(Request $request)
+    {
+        $data = $request->validate([
+            'id_token' => 'required|string',
+        ]);
+
+        $googleClientId = (string) env('GOOGLE_CLIENT_ID', '');
+        if ($googleClientId === '') {
+            return response()->json([
+                'message' => 'Missing GOOGLE_CLIENT_ID in .env'
+            ], 500);
+        }
+
+        // Verify token bằng tokeninfo endpoint (đơn giản, không cần thêm package).
+        $resp = Http::timeout(10)->get('https://oauth2.googleapis.com/tokeninfo', [
+            'id_token' => $data['id_token'],
+        ]);
+
+        if (!$resp->ok()) {
+            return response()->json([
+                'message' => 'Invalid Google token',
+                'details' => $resp->json(),
+            ], 401);
+        }
+
+        $payload = $resp->json();
+
+        // Basic checks
+        $aud = $payload['aud'] ?? null;
+        $iss = $payload['iss'] ?? null;
+        $email = $payload['email'] ?? null;
+        $emailVerified = filter_var($payload['email_verified'] ?? false, FILTER_VALIDATE_BOOL);
+        $name = $payload['name'] ?? null;
+
+        if ($aud !== $googleClientId) {
+            return response()->json([
+                'message' => 'Google token audience mismatch',
+            ], 401);
+        }
+
+        if (!in_array($iss, ['accounts.google.com', 'https://accounts.google.com'], true)) {
+            return response()->json([
+                'message' => 'Google token issuer mismatch',
+            ], 401);
+        }
+
+        if (!$email || !$emailVerified) {
+            return response()->json([
+                'message' => 'Google account email not verified',
+            ], 401);
+        }
+
+        $user = User::where('email', $email)->first();
+
+        if (!$user) {
+            $user = User::create([
+                'name'              => $name ?: Str::before($email, '@'),
+                'email'             => $email,
+                'password'          => Str::random(32), // will be hashed via casts
+                'provider'          => 'GOOGLE',
+                'active'            => true,
+                'email_verified_at' => now(),
+            ]);
+        } else {
+            // Nếu user tồn tại nhưng chưa active/verify thì đồng bộ theo Google
+            $user->update([
+                'provider'          => $user->provider ?: 'GOOGLE',
+                'active'            => true,
+                'email_verified_at' => $user->email_verified_at ?: now(),
+            ]);
+        }
+
+        // Xóa token cũ và tạo mới
+        $user->tokens()->delete();
+        $token = $user->createToken('auth_token')->plainTextToken;
+        $cleanToken = explode('|', $token, 2)[1] ?? $token;
+
+        return response()->json([
+            'user'       => $user,
+            'token'      => $cleanToken,
+            'token_type' => 'Bearer',
         ]);
     }
     // POST /api/logout - Xóa token
