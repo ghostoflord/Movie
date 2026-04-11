@@ -10,6 +10,7 @@ use App\Enum\UserRoleEnum;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable
@@ -54,6 +55,7 @@ class User extends Authenticatable
      */
     protected $appends = [
         'is_email_verified',
+        'avatar_url',
     ];
 
     /**
@@ -107,4 +109,13 @@ class User extends Authenticatable
         return $this->email_verified_at !== null;
     }
 
+    /** URL đầy đủ để hiển thị ảnh (cần `php artisan storage:link`). */
+    public function getAvatarUrlAttribute(): ?string
+    {
+        if (!$this->avatar) {
+            return null;
+        }
+
+        return Storage::disk('public')->url($this->avatar);
+    }
 }
