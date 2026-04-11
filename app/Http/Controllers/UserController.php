@@ -7,6 +7,7 @@ use App\Enum\UserRoleEnum;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 
 class UserController extends Controller
@@ -47,7 +48,13 @@ class UserController extends Controller
             'role' => ['sometimes', Rule::in(array_map(fn (UserRoleEnum $e) => $e->value, UserRoleEnum::cases()))],
             'active' => 'sometimes|boolean',
             'gender' => ['sometimes', 'nullable', Rule::in(array_map(fn (GenderEnum $e) => $e->value, GenderEnum::cases()))],
+            'avatar' => 'sometimes|file|image|max:10240',
         ]);
+
+        $avatarPath = null;
+        if ($request->hasFile('avatar')) {
+            $avatarPath = $request->file('avatar')->store('avatars', 'public'); // storage/app/public/avatars
+        }
 
         $user = User::create([
             'name' => $data['name'],
@@ -56,6 +63,7 @@ class UserController extends Controller
             'role' => $data['role'] ?? UserRoleEnum::USER->value,
             'active' => $data['active'] ?? true,
             'gender' => $data['gender'] ?? null,
+            'avatar' => $avatarPath,
         ]);
         return response()->json($user, 200);
     }
@@ -77,6 +85,7 @@ class UserController extends Controller
     public function update(Request $request, string $id)
     {
         $user = User::findOrFail($id);
+
         $data = $request->validate([
             'name' => 'sometimes|string|max:225',
             'email' => 'sometimes|email|unique:users,email,' . $id,
@@ -84,10 +93,20 @@ class UserController extends Controller
             'role' => ['sometimes', Rule::in(array_map(fn (UserRoleEnum $e) => $e->value, UserRoleEnum::cases()))],
             'active' => 'sometimes|boolean',
             'gender' => ['sometimes', 'nullable', Rule::in(array_map(fn (GenderEnum $e) => $e->value, GenderEnum::cases()))],
+            'avatar' => 'sometimes|file|image|max:10240',
         ]);
         if (isset($data['password'])) {
             $data['password'] = Hash::make($data['password']);
         }
+
+        if ($request->hasFile('avatar')) {
+            $newPath = $request->file('avatar')->store('avatars', 'public');
+            if ($user->avatar) {
+                Storage::disk('public')->delete($user->avatar);
+            }
+            $data['avatar'] = $newPath;
+        }
+
         $user->update($data);
         return response()->json($user->fresh());
     }

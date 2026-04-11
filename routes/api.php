@@ -45,6 +45,8 @@ Route::middleware('auth:sanctum')->group(function () { // require Authorization:
     Route::get('/user', [AuthController::class, 'user']); // lấy thông tin user hiện tại
     Route::post('/logout', [AuthController::class, 'logout']); // logout (xóa token)
 
+    // Upload multipart qua PUT hay bị PHP bỏ qua body. Cho phép POST /users/{id} để update (FE dùng FormData chuyên nghiệp hơn, không cần _method).
+    Route::post('users/{id}', [UserController::class, 'update']);
     Route::apiResource('users', UserController::class); // CRUD users
     Route::apiResource('categories', CategoryController::class); // CRUD categories
     Route::apiResource('actors', ActorController::class); // CRUD actors

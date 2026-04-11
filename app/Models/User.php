@@ -30,6 +30,7 @@ class User extends Authenticatable
         'role',
         'gender',
         'provider',
+        'avatar',
     ];
 
     /**
@@ -105,4 +106,5 @@ class User extends Authenticatable
     {
         return $this->email_verified_at !== null;
     }
+
 }
