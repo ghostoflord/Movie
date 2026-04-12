@@ -33,8 +33,23 @@ class MovieResource extends JsonResource
             'quality' => $this->quality,
             'language' => $this->language,
 
-            // Arrays (JSON fields)
-            'categories' => $this->categories,
+            // Thể loại / quốc gia: ưu tiên pivot (bảng); fallback cột JSON (dữ liệu cũ)
+            'categories' => ($this->relationLoaded('movieCategories') && $this->movieCategories->isNotEmpty())
+                ? $this->movieCategories->map(fn ($c) => [
+                    'id' => $c->id,
+                    'name' => $c->name,
+                    'slug' => $c->slug,
+                    'ophim_id' => $c->ophim_id,
+                ])->values()->all()
+                : $this->categories,
+            'countries' => ($this->relationLoaded('movieCountries') && $this->movieCountries->isNotEmpty())
+                ? $this->movieCountries->map(fn ($c) => [
+                    'id' => $c->id,
+                    'name' => $c->name,
+                    'slug' => $c->slug,
+                    'ophim_id' => $c->ophim_id,
+                ])->values()->all()
+                : $this->countries,
             'actors' => $this->actors,
             'directors' => $this->directors,
 

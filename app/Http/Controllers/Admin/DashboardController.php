@@ -3,7 +3,9 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Category;
 use App\Models\Comment;
+use App\Models\Country;
 use App\Models\Episode;
 use App\Models\Favorite;
 use App\Models\Movie;
@@ -34,6 +36,8 @@ class DashboardController extends Controller
                 'actors' => $this->countUniqueNamesFromMoviesJson('actors'),
                 'directors' => $this->countUniqueNamesFromMoviesJson('directors'),
                 'categories' => $this->countUniqueNamesFromMoviesJson('categories'),
+                'genres_in_db' => Category::query()->count(),
+                'countries_in_db' => Country::query()->count(),
                 'ratings' => DB::table('ratings')->count(),
                 'servers' => Server::query()->count(),
             ],

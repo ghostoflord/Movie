@@ -10,6 +10,8 @@ use App\Http\Controllers\EpisodeController;
 use App\Http\Controllers\FavoriteController;
 use App\Http\Controllers\MovieCategoryBrowseController;
 use App\Http\Controllers\MovieController;
+use App\Http\Controllers\OphimCatalogController;
+use App\Http\Controllers\TaxonomyController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\RatingController;
 use App\Http\Controllers\UserController;
@@ -41,6 +43,16 @@ Route::apiResource('movies', MovieController::class); // CRUD movies (public)
 Route::get('/movie-categories', [MovieCategoryBrowseController::class, 'index']); // thể loại từ JSON phim (unique + đếm phim)
 Route::get('/movie-categories/movies', [MovieCategoryBrowseController::class, 'movies']); // phim theo thể loại (?category=...) + episodes
 
+// Catalog OPhim (thể loại / quốc gia + danh sách phim theo slug) — cho modal/filter FE
+Route::get('/ophim/the-loai', [OphimCatalogController::class, 'theLoai']);
+Route::get('/ophim/quoc-gia', [OphimCatalogController::class, 'quocGia']);
+Route::get('/ophim/the-loai/{slug}', [OphimCatalogController::class, 'theLoaiBySlug']);
+Route::get('/ophim/quoc-gia/{slug}', [OphimCatalogController::class, 'quocGiaBySlug']);
+
+// Thể loại / quốc gia đã lưu DB (bảng categories, countries + pivot)
+Route::get('/taxonomy/genres', [TaxonomyController::class, 'genres']);
+Route::get('/taxonomy/countries', [TaxonomyController::class, 'countries']);
+
 Route::middleware('auth:sanctum')->group(function () { // require Authorization: Bearer <token>
     Route::get('/user', [AuthController::class, 'user']); // lấy thông tin user hiện tại
     Route::post('/logout', [AuthController::class, 'logout']); // logout (xóa token)
@@ -70,6 +82,7 @@ Route::middleware('auth:sanctum')->group(function () { // require Authorization:
     Route::post('/admin/crawl-movies', [CrawlController::class, 'start']); // start crawl movies
     Route::get('/admin/crawl-status', [CrawlController::class, 'status']); // crawl status
     Route::post('/admin/crawl/category', [CrawlController::class, 'crawlCategory']); // crawl theo category
+    Route::post('/admin/crawl/country', [CrawlController::class, 'crawlCountry']); // crawl theo quốc gia (slug OPhim)
 
 
 });

@@ -20,7 +20,7 @@ class MovieController extends Controller
         $perPage = min($perPage, 100);
         $perPage = max($perPage, 1); // Đảm bảo ít nhất 1
 
-        $movies = Movie::with('episodes')
+        $movies = Movie::with(['episodes', 'movieCategories', 'movieCountries'])
             ->paginate($perPage, ['*'], 'page', $page);
 
         return response()->json([
@@ -57,16 +57,18 @@ class MovieController extends Controller
         $movie->update($data);
 
         return response()->json([
-            'data' => new MovieResource($movie->fresh()->load('episodes')),
+            'data' => new MovieResource($movie->fresh()->load(['episodes', 'movieCategories', 'movieCountries'])),
         ]);
     }
 
     // GET /api/movies/{id}
     public function show($id)
     {
-        $movie = Movie::with(['episodes', 'comments'])->findOrFail($id);
+        $movie = Movie::with(['episodes', 'comments', 'movieCategories', 'movieCountries'])->findOrFail($id);
 
-        return response()->json($movie);
+        return response()->json([
+            'data' => new MovieResource($movie),
+        ]);
     }
 
     // DELETE

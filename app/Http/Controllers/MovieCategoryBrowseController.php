@@ -3,13 +3,16 @@
 namespace App\Http\Controllers;
 
 use App\Http\Resources\MovieResource;
+use App\Models\Category;
 use App\Models\Movie;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class MovieCategoryBrowseController extends Controller
 {
     /**
-     * Danh sách thể loại suy ra từ JSON `movies.categories` (gộp trùng không phân biệt hoa/thường).
+     * Danh sách thể loại: ưu tiên bảng `categories` + pivot; nếu chưa có pivot thì gộp từ JSON `movies.categories`.
      */
     public function index(Request $request)
     {
@@ -58,10 +61,37 @@ class MovieCategoryBrowseController extends Controller
         $page = max(1, (int) $request->query('page', 1));
 
         $needle = $this->normalizeLabelKey($request->query('category'));
+        $raw = trim($request->query('category'));
+
+        if (Schema::hasTable('category_movie') && DB::table('category_movie')->exists()) {
+            $paginator = Movie::query()
+                ->whereHas('movieCategories', function ($q) use ($needle, $raw) {
+                    $q->where(function ($sub) use ($raw, $needle) {
+                        $sub->where('slug', $raw)
+                            ->orWhereRaw('LOWER(TRIM(name)) = ?', [$needle]);
+                    });
+                })
+                ->with(['episodes', 'movieCategories', 'movieCountries'])
+                ->orderBy('id')
+                ->paginate($perPage, ['*'], 'page', $page);
+
+            return response()->json([
+                'data' => MovieResource::collection($paginator->items()),
+                'meta' => [
+                    'category_query' => $request->query('category'),
+                    'normalized' => $needle,
+                    'source' => 'pivot',
+                    'current_page' => $paginator->currentPage(),
+                    'per_page' => $paginator->perPage(),
+                    'total' => $paginator->total(),
+                    'last_page' => $paginator->lastPage(),
+                ],
+            ]);
+        }
 
         $filtered = Movie::query()
             ->whereNotNull('categories')
-            ->with('episodes')
+            ->with(['episodes', 'movieCategories', 'movieCountries'])
             ->orderBy('id')
             ->get()
             ->filter(function (Movie $movie) use ($needle) {
@@ -86,6 +116,7 @@ class MovieCategoryBrowseController extends Controller
             'meta' => [
                 'category_query' => $request->query('category'),
                 'normalized' => $needle,
+                'source' => 'json',
                 'current_page' => $page,
                 'per_page' => $perPage,
                 'total' => $total,
@@ -95,10 +126,24 @@ class MovieCategoryBrowseController extends Controller
     }
 
     /**
-     * @return list<array{label: string, normalized: string, movies_count: int}>
+     * @return list<array<string, mixed>>
      */
     private function aggregateCategoriesFromMovies(): array
     {
+        if (Schema::hasTable('category_movie') && DB::table('category_movie')->exists()) {
+            return Category::query()
+                ->withCount('movies')
+                ->orderBy('name')
+                ->get()
+                ->map(fn (Category $c) => [
+                    'label' => $c->name,
+                    'normalized' => $this->normalizeLabelKey($c->name),
+                    'slug' => $c->slug,
+                    'movies_count' => $c->movies_count,
+                ])
+                ->all();
+        }
+
         $byKey = [];
 
         Movie::query()

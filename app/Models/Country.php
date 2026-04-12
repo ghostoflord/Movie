@@ -5,20 +5,16 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
-class Category extends Model
+class Country extends Model
 {
     protected $fillable = [
+        'ophim_id',
         'name',
         'slug',
-        'ophim_id',
-        'description',
-        'icon',
-        'title',
     ];
 
     public function movies(): BelongsToMany
     {
-        return $this->belongsToMany(Movie::class, 'category_movie')->withTimestamps();
+        return $this->belongsToMany(Movie::class, 'country_movie')->withTimestamps();
     }
 }
-

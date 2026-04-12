@@ -2,8 +2,9 @@
 
 namespace App\Jobs;
 
-use App\Models\Movie;
 use App\Models\Episode;
+use App\Models\Movie;
+use App\Services\OphimMovieTaxonomySync;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Foundation\Queue\Queueable;
@@ -92,6 +93,16 @@ class CrawlMoviesJob implements ShouldQueue
                             }
                         }
 
+                        // ========== XỬ LÝ QUỐC GIA ==========
+                        $countries = [];
+                        if (isset($movieData['country']) && is_array($movieData['country'])) {
+                            foreach ($movieData['country'] as $c) {
+                                if (! empty($c['name'])) {
+                                    $countries[] = $c['name'];
+                                }
+                            }
+                        }
+
                         // ========== XỬ LÝ ACTORS ==========
                         $actors = [];
                         if (isset($movieData['actor']) && is_array($movieData['actor'])) {
@@ -110,9 +121,8 @@ class CrawlMoviesJob implements ShouldQueue
                             $language = $movieData['lang'];
                         } elseif (isset($movieData['language'])) {
                             $language = $movieData['language'];
-                        } elseif (isset($movieData['country']) && is_array($movieData['country']) && count($movieData['country']) > 0) {
+                        } elseif ($countries !== []) {
                             // Fallback to country name if no language
-                            $countries = array_column($movieData['country'], 'name');
                             $language = implode(', ', $countries);
                         }
 
@@ -130,7 +140,8 @@ class CrawlMoviesJob implements ShouldQueue
                                     'year'            => $movieData['year'] ?? null,
                                     'quality'         => $movieData['quality'] ?? null,
                                     'language'        => $language,
-                                    'categories'      => $categories,      // Đã xử lý
+                                    'categories'      => $categories,
+                                    'countries'       => $countries,
                                     'actors'          => $actors,          // Đã xử lý
                                     'directors'       => $directors,       // Đã xử lý
                                     'status'          => $movieData['status'] ?? 'ongoing',
@@ -172,6 +183,12 @@ class CrawlMoviesJob implements ShouldQueue
                                     $episodeCount++;
                                 }
                             }
+
+                            OphimMovieTaxonomySync::sync(
+                                $movie,
+                                is_array($movieData['category'] ?? null) ? $movieData['category'] : [],
+                                is_array($movieData['country'] ?? null) ? $movieData['country'] : []
+                            );
 
                             DB::commit();
                             Log::info("Đã lưu phim {$movie->name}, {$episodeCount} tập");
