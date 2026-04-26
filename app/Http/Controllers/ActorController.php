@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Resources\ActorResource;
 use App\Models\Actor;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -13,10 +14,13 @@ class ActorController extends Controller
         $perPage = (int) $request->query('per_page', 10);
         $perPage = max(1, min($perPage, 100));
 
-        $actors = Actor::query()->paginate($perPage);
+        $actors = Actor::query()
+            ->with(['movies:id'])
+            ->withCount('movies')
+            ->paginate($perPage);
 
         return response()->json([
-            'data' => $actors->items(),
+            'data' => ActorResource::collection($actors->items()),
             'meta' => [
                 'current_page' => $actors->currentPage(),
                 'last_page' => $actors->lastPage(),
@@ -37,9 +41,9 @@ class ActorController extends Controller
 
     public function show($id)
     {
-        $actor = Actor::query()->findOrFail($id);
+        $actor = Actor::query()->with(['movies:id'])->withCount('movies')->findOrFail($id);
 
-        return response()->json(['data' => $actor]);
+        return response()->json(['data' => new ActorResource($actor)]);
     }
 
     public function update(Request $request, $id)
@@ -74,9 +78,10 @@ class ActorController extends Controller
         return [
             'name' => [$required, 'string', 'max:255'],
             'slug' => [$required, 'string', 'max:255', $slugRule],
-            'bio' => [$required, 'string', 'max:4096'],
-            'avatar' => [$required, 'string', 'max:2048'],
-            'birth_date' => [$required, 'string', 'max:50'],
+            // Crawl/backfill thường không có đủ info → cho phép null
+            'bio' => [$required, 'nullable', 'string', 'max:4096'],
+            'avatar' => [$required, 'nullable', 'string', 'max:2048'],
+            'birth_date' => [$required, 'nullable', 'string', 'max:50'],
         ];
     }
 }

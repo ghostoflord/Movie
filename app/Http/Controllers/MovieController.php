@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Resources\MovieResource;
 use App\Models\Movie;
+use App\Services\OphimMovieActorSync;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
@@ -20,7 +21,7 @@ class MovieController extends Controller
         $perPage = min($perPage, 100);
         $perPage = max($perPage, 1); // Đảm bảo ít nhất 1
 
-        $movies = Movie::with(['episodes', 'movieCategories', 'movieCountries'])
+        $movies = Movie::with(['episodes', 'movieCategories', 'movieCountries', 'movieActors'])
             ->paginate($perPage, ['*'], 'page', $page);
 
         return response()->json([
@@ -56,15 +57,23 @@ class MovieController extends Controller
 
         $movie->update($data);
 
+        // Update diễn viên theo pivot nếu client gửi lên
+        if (isset($data['actor_ids']) && is_array($data['actor_ids'])) {
+            $movie->movieActors()->sync($data['actor_ids']);
+        } elseif (isset($data['actors']) && is_array($data['actors'])) {
+            // Cho phép gửi tên diễn viên (array string) rồi upsert + sync
+            OphimMovieActorSync::sync($movie, $data['actors']);
+        }
+
         return response()->json([
-            'data' => new MovieResource($movie->fresh()->load(['episodes', 'movieCategories', 'movieCountries'])),
+            'data' => new MovieResource($movie->fresh()->load(['episodes', 'movieCategories', 'movieCountries', 'movieActors'])),
         ]);
     }
 
     // GET /api/movies/{id}
     public function show($id)
     {
-        $movie = Movie::with(['episodes', 'comments', 'movieCategories', 'movieCountries'])->findOrFail($id);
+        $movie = Movie::with(['episodes', 'comments', 'movieCategories', 'movieCountries', 'movieActors'])->findOrFail($id);
 
         return response()->json([
             'data' => new MovieResource($movie),
@@ -103,8 +112,12 @@ class MovieController extends Controller
             'language' => 'nullable|string|max:50',
             'categories' => 'nullable|array',
             'categories.*' => 'string|max:255',
+            'countries' => 'nullable|array',
+            'countries.*' => 'string|max:255',
             'actors' => 'nullable|array',
             'actors.*' => 'string|max:255',
+            'actor_ids' => 'nullable|array',
+            'actor_ids.*' => 'integer|exists:actors,id',
             'directors' => 'nullable|array',
             'directors.*' => 'string|max:255',
             'status' => 'nullable|string|max:50',

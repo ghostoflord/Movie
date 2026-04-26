@@ -42,6 +42,12 @@ class Movie extends Model
         return $this->belongsToMany(Country::class, 'country_movie')->withTimestamps();
     }
 
+    /** Pivot diễn viên (tránh trùng tên với cột JSON `actors`). */
+    public function movieActors()
+    {
+        return $this->belongsToMany(Actor::class, 'actor_movie')->withTimestamps();
+    }
+
     public function comments()
     {
         return $this->hasMany(Comment::class);

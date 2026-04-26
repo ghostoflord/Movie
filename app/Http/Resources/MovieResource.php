@@ -50,7 +50,16 @@ class MovieResource extends JsonResource
                     'ophim_id' => $c->ophim_id,
                 ])->values()->all()
                 : $this->countries,
-            'actors' => $this->actors,
+            'actors' => ($this->relationLoaded('movieActors') && $this->movieActors->isNotEmpty())
+                ? $this->movieActors->map(fn ($a) => [
+                    'id' => $a->id,
+                    'name' => $a->name,
+                    'slug' => $a->slug,
+                    'ophim_id' => $a->ophim_id,
+                    'avatar' => $a->avatar,
+                    'birth_date' => $a->birth_date,
+                ])->values()->all()
+                : $this->actors,
             'directors' => $this->directors,
 
             // Status & episodes

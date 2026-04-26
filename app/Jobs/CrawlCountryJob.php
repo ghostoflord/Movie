@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Models\Episode;
 use App\Models\Movie;
+use App\Services\OphimMovieActorSync;
 use App\Services\OphimMovieTaxonomySync;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\RequestException;
@@ -177,6 +178,11 @@ class CrawlCountryJob implements ShouldQueue
                                 $movie,
                                 is_array($movieData['category'] ?? null) ? $movieData['category'] : [],
                                 is_array($movieData['country'] ?? null) ? $movieData['country'] : []
+                            );
+
+                            OphimMovieActorSync::sync(
+                                $movie,
+                                is_array($movieData['actor'] ?? null) ? $movieData['actor'] : []
                             );
 
                             DB::commit();
