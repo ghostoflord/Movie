@@ -10,6 +10,7 @@ use App\Http\Controllers\EpisodeController;
 use App\Http\Controllers\FavoriteController;
 use App\Http\Controllers\MovieCategoryBrowseController;
 use App\Http\Controllers\MovieController;
+use App\Http\Controllers\MovieActorController;
 use App\Http\Controllers\OphimCatalogController;
 use App\Http\Controllers\TaxonomyController;
 use App\Http\Controllers\NotificationController;
@@ -62,6 +63,11 @@ Route::middleware('auth:sanctum')->group(function () { // require Authorization:
     Route::apiResource('users', UserController::class); // CRUD users
     Route::apiResource('categories', CategoryController::class); // CRUD categories
     Route::apiResource('actors', ActorController::class); // CRUD actors
+
+    // Gán/xóa diễn viên cho phim
+    Route::post('movies/{movieId}/actors', [MovieActorController::class, 'attach']); // attach (không xoá cũ)
+    Route::put('movies/{movieId}/actors', [MovieActorController::class, 'sync']); // sync (thay thế)
+    Route::delete('movies/{movieId}/actors/{actorId}', [MovieActorController::class, 'detach']); // detach 1 diễn viên
     Route::apiResource('servers', ServerController::class); // CRUD servers
 
     Route::apiResource('ratings', RatingController::class)->only(['index', 'store', 'show', 'update', 'destroy']); // CRUD ratings (chỉ của user hiện tại)
