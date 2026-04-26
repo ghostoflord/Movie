@@ -33,9 +33,33 @@ class MovieResource extends JsonResource
             'quality' => $this->quality,
             'language' => $this->language,
 
-            // Arrays (JSON fields)
-            'categories' => $this->categories,
-            'actors' => $this->actors,
+            // Thể loại / quốc gia: ưu tiên pivot (bảng); fallback cột JSON (dữ liệu cũ)
+            'categories' => ($this->relationLoaded('movieCategories') && $this->movieCategories->isNotEmpty())
+                ? $this->movieCategories->map(fn ($c) => [
+                    'id' => $c->id,
+                    'name' => $c->name,
+                    'slug' => $c->slug,
+                    'ophim_id' => $c->ophim_id,
+                ])->values()->all()
+                : $this->categories,
+            'countries' => ($this->relationLoaded('movieCountries') && $this->movieCountries->isNotEmpty())
+                ? $this->movieCountries->map(fn ($c) => [
+                    'id' => $c->id,
+                    'name' => $c->name,
+                    'slug' => $c->slug,
+                    'ophim_id' => $c->ophim_id,
+                ])->values()->all()
+                : $this->countries,
+            'actors' => ($this->relationLoaded('movieActors') && $this->movieActors->isNotEmpty())
+                ? $this->movieActors->map(fn ($a) => [
+                    'id' => $a->id,
+                    'name' => $a->name,
+                    'slug' => $a->slug,
+                    'ophim_id' => $a->ophim_id,
+                    'avatar' => $a->avatar,
+                    'birth_date' => $a->birth_date,
+                ])->values()->all()
+                : $this->actors,
             'directors' => $this->directors,
 
             // Status & episodes

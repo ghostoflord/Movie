@@ -74,6 +74,7 @@ class CategoryController extends Controller
         return [
             'name' => [$required, 'string', 'max:255'],
             'slug' => [$required, 'string', 'max:255', $slugRule],
+            'ophim_id' => ['nullable', 'string', 'max:32'],
             'description' => [$required, 'string', 'max:2048'],
             'icon' => [$required, 'string', 'max:255'],
             'title' => [$required, 'string', 'max:255'],

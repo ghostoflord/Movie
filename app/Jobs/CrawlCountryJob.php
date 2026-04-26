@@ -6,86 +6,85 @@ use App\Models\Episode;
 use App\Models\Movie;
 use App\Services\OphimMovieActorSync;
 use App\Services\OphimMovieTaxonomySync;
+use GuzzleHttp\Client;
+use GuzzleHttp\Exception\RequestException;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\InteractsWithQueue;
+use Illuminate\Queue\Middleware\ThrottlesExceptions;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Queue\Middleware\ThrottlesExceptions;
-use GuzzleHttp\Client;                // Thay vì Http facade
-use GuzzleHttp\Exception\RequestException;
 
-class CrawlCategoryJob implements ShouldQueue
+class CrawlCountryJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public $timeout = 1200; // 20 phút
-    public $tries = 3;      // Thử lại 3 lần nếu thất bại
+    public $timeout = 1200;
 
-    protected $categorySlug;
-    protected $pages;
+    public $tries = 3;
 
-    public function __construct(string $categorySlug, int $pages = 3)
+    public function __construct(
+        protected string $countrySlug,
+        protected int $pages = 3
+    ) {}
+
+    public function handle(): void
     {
-        $this->categorySlug = $categorySlug;
-        $this->pages = $pages;
-    }
+        Log::info("Bắt đầu crawl quốc gia [{$this->countrySlug}] - {$this->pages} trang");
 
-    public function handle()
-    {
-        Log::info("Bắt đầu crawl thể loại [{$this->categorySlug}] - {$this->pages} trang");
-
-        // Tạo Guzzle client với User-Agent
         $client = new Client([
             'timeout' => 30,
             'headers' => [
-                'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-            ]
+                'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+            ],
         ]);
 
         for ($page = 1; $page <= $this->pages; $page++) {
-            Log::info("Crawl thể loại {$this->categorySlug} - trang {$page}");
+            Log::info("Crawl quốc gia {$this->countrySlug} - trang {$page}");
 
             try {
-                // Gọi API danh sách phim theo thể loại
-                $response = $client->get("https://ophim1.com/v1/api/the-loai/{$this->categorySlug}?page={$page}", [
-                    'query' => ['page' => $page]
+                $response = $client->get("https://ophim1.com/v1/api/quoc-gia/{$this->countrySlug}", [
+                    'query' => ['page' => $page],
                 ]);
 
-                $statusCode = $response->getStatusCode();
-                if ($statusCode !== 200) {
-                    Log::error("Lỗi kết nối thể loại {$this->categorySlug} trang {$page}, status: " . $statusCode);
+                if ($response->getStatusCode() !== 200) {
+                    Log::error("Lỗi kết nối quốc gia {$this->countrySlug} trang {$page}");
+
                     continue;
                 }
 
                 $data = json_decode($response->getBody()->getContents(), true);
 
-                if (!isset($data['data']['items']) || empty($data['data']['items'])) {
-                    Log::warning("Không có phim ở thể loại {$this->categorySlug} trang {$page}");
+                if (empty($data['data']['items'])) {
+                    Log::warning("Không có phim ở quốc gia {$this->countrySlug} trang {$page}");
+
                     continue;
                 }
 
                 foreach ($data['data']['items'] as $item) {
                     $slug = $item['slug'] ?? null;
-                    if (!$slug) continue;
+                    if (! $slug) {
+                        continue;
+                    }
 
-                    Log::info("Xử lý phim: " . ($item['name'] ?? 'Không tên'));
+                    Log::info('Xử lý phim: '.($item['name'] ?? 'Không tên'));
 
                     try {
-                        // Gọi API chi tiết phim để lấy thông tin đầy đủ và tập
                         $detailResponse = $client->get("https://ophim1.com/phim/{$slug}");
 
                         if ($detailResponse->getStatusCode() !== 200) {
                             Log::error("Lỗi lấy chi tiết phim {$slug}");
+
                             continue;
                         }
 
                         $detail = json_decode($detailResponse->getBody()->getContents(), true);
 
-                        if (!isset($detail['movie'])) {
+                        if (! isset($detail['movie'])) {
                             Log::error("Dữ liệu phim {$slug} không hợp lệ");
+
                             continue;
                         }
 
@@ -121,7 +120,6 @@ class CrawlCategoryJob implements ShouldQueue
                         DB::beginTransaction();
 
                         try {
-                            // Lưu hoặc cập nhật phim
                             $movie = Movie::updateOrCreate(
                                 ['slug' => $movieData['slug']],
                                 [
@@ -145,24 +143,31 @@ class CrawlCategoryJob implements ShouldQueue
 
                             $episodeCount = 0;
 
-                            // Xử lý tập phim
                             foreach ($episodes as $episodeGroup) {
-                                if (!isset($episodeGroup['server_data'])) continue;
+                                if (! isset($episodeGroup['server_data'])) {
+                                    continue;
+                                }
 
                                 foreach ($episodeGroup['server_data'] as $ep) {
-                                    preg_match('/(\d+)/', $ep['name'], $matches);
-                                    $epNumber = $matches[1] ?? 1;
+                                    $epName = $ep['name'] ?? '';
+                                    $epNumber = 1;
+                                    if (is_numeric($epName)) {
+                                        $epNumber = (int) $epName;
+                                    } else {
+                                        preg_match('/(\d+)/', (string) $epName, $matches);
+                                        $epNumber = isset($matches[1]) ? (int) $matches[1] : 1;
+                                    }
 
                                     Episode::updateOrCreate(
                                         [
-                                            'movie_id'       => $movie->id,
-                                            'episode_number' => $epNumber
+                                            'movie_id' => $movie->id,
+                                            'episode_number' => $epNumber,
                                         ],
                                         [
-                                            'name'          => $ep['name'],
-                                            'slug'          => "tap-{$epNumber}",
-                                            'embed_url'     => $ep['link_embed'] ?? $ep['link_m3u8'] ?? '',
-                                            'episode_number' => $epNumber
+                                            'name' => $epName,
+                                            'slug' => "tap-{$epNumber}",
+                                            'embed_url' => $ep['link_embed'] ?? $ep['link_m3u8'] ?? '',
+                                            'episode_number' => $epNumber,
                                         ]
                                     );
                                     $episodeCount++;
@@ -184,34 +189,30 @@ class CrawlCategoryJob implements ShouldQueue
                             Log::info("Đã lưu phim {$movie->name}, {$episodeCount} tập");
                         } catch (\Exception $e) {
                             DB::rollBack();
-                            Log::error("Lỗi khi lưu phim {$slug}: " . $e->getMessage());
+                            Log::error("Lỗi khi lưu phim {$slug}: ".$e->getMessage());
                         }
                     } catch (RequestException $e) {
-                        Log::error("Lỗi HTTP khi lấy chi tiết phim {$slug}: " . $e->getMessage());
+                        Log::error("Lỗi HTTP khi lấy chi tiết phim {$slug}: ".$e->getMessage());
                     }
 
-                    sleep(1); // delay tránh quá tải API
+                    sleep(1);
                 }
             } catch (RequestException $e) {
-                Log::error("Lỗi HTTP khi crawl thể loại {$this->categorySlug} trang {$page}: " . $e->getMessage());
+                Log::error("Lỗi HTTP khi crawl quốc gia {$this->countrySlug} trang {$page}: ".$e->getMessage());
             }
 
-            // Delay giữa các trang
             if ($page < $this->pages) {
                 sleep(2);
             }
         }
 
-        Log::info("Hoàn thành crawl thể loại {$this->categorySlug}");
+        Log::info("Hoàn thành crawl quốc gia {$this->countrySlug}");
     }
 
-    /**
-     * Middleware để xử lý rate limit (tránh bị chặn)
-     */
-    public function middleware()
+    public function middleware(): array
     {
         return [
-            new ThrottlesExceptions(10, 1) // Cho phép 10 lần thử lại mỗi phút
+            new ThrottlesExceptions(10, 1),
         ];
     }
 }

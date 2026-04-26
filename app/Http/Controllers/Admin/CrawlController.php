@@ -5,8 +5,9 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Jobs\CrawlCategoryJob;
-use Illuminate\Http\Request;
+use App\Jobs\CrawlCountryJob;
 use App\Jobs\CrawlMoviesJob;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 
 class CrawlController extends Controller
@@ -53,6 +54,24 @@ class CrawlController extends Controller
         return response()->json([
             'success' => true,
             'message' => "Đã bắt đầu crawl thể loại {$category} với {$pages} trang"
+        ]);
+    }
+
+    public function crawlCountry(Request $request)
+    {
+        $request->validate([
+            'country' => 'required|string',
+            'pages' => 'nullable|integer|min:1|max:20',
+        ]);
+
+        $country = $request->input('country');
+        $pages = $request->input('pages', 3);
+
+        CrawlCountryJob::dispatch($country, $pages);
+
+        return response()->json([
+            'success' => true,
+            'message' => "Đã bắt đầu crawl quốc gia {$country} với {$pages} trang",
         ]);
     }
 }

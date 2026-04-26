@@ -12,11 +12,13 @@ class Movie extends Model
     protected $fillable = [
         'name', 'origin_name', 'slug', 'thumb_url', 'poster_url',
         'description', 'year', 'quality', 'language', 'categories',
+        'countries',
         'actors', 'directors', 'status', 'episode_current', 'episode_total'
     ];
 
     protected $casts = [
         'categories' => 'array',
+        'countries' => 'array',
         'actors' => 'array',
         'directors' => 'array',
     ];
@@ -26,6 +28,24 @@ class Movie extends Model
     public function episodes()
     {
         return $this->hasMany(Episode::class);
+    }
+
+    /** Pivot thể loại (tránh trùng tên với cột JSON `categories`). */
+    public function movieCategories()
+    {
+        return $this->belongsToMany(Category::class, 'category_movie')->withTimestamps();
+    }
+
+    /** Pivot quốc gia (tránh trùng tên với cột JSON `countries`). */
+    public function movieCountries()
+    {
+        return $this->belongsToMany(Country::class, 'country_movie')->withTimestamps();
+    }
+
+    /** Pivot diễn viên (tránh trùng tên với cột JSON `actors`). */
+    public function movieActors()
+    {
+        return $this->belongsToMany(Actor::class, 'actor_movie')->withTimestamps();
     }
 
     public function comments()

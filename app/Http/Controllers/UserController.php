@@ -80,11 +80,23 @@ class UserController extends Controller
 
     /**
      * Update the specified resource in storage.
+     *
+     * - JSON fields: PUT/PATCH /api/users/{id}
+     * - Upload avatar (multipart): POST /api/users/{id} + form-data key `avatar` (File)
      */
-    // PUT /api/users/{id}
     public function update(Request $request, string $id)
     {
         $user = User::findOrFail($id);
+
+        // PHP (và php artisan serve) thường KHÔNG parse multipart/form-data cho PUT/PATCH → không có file, body rỗng.
+        $contentType = strtolower((string) $request->header('Content-Type', ''));
+        if (in_array($request->method(), ['PUT', 'PATCH'], true)
+            && str_contains($contentType, 'multipart/form-data')
+            && ! $request->hasFile('avatar')) {
+            return response()->json([
+                'message' => 'Không upload được ảnh khi dùng PUT + form-data: PHP không đưa file vào request. Hãy đổi Method sang POST, URL giữ nguyên /api/users/'.$id.', Body form-data, key avatar = File.',
+            ], 422);
+        }
 
         $data = $request->validate([
             'name' => 'sometimes|string|max:225',
@@ -117,7 +129,12 @@ class UserController extends Controller
     // DELETE /api/users/{id}
     public function destroy(string $id)
     {
-        User::findOrFail($id)->delete();
+        $user = User::findOrFail($id);
+        if ($user->avatar) {
+            Storage::disk('public')->delete($user->avatar);
+        }
+        $user->delete();
+
         return response()->json(['message' => 'delete data success']);
     }
 }
