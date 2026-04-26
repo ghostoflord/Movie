@@ -63,6 +63,8 @@ Route::middleware('auth:sanctum')->group(function () { // require Authorization:
     Route::apiResource('users', UserController::class); // CRUD users
     Route::apiResource('categories', CategoryController::class); // CRUD categories
     Route::apiResource('actors', ActorController::class); // CRUD actors
+    // Upload avatar actor qua PUT multipart hay bị PHP bỏ qua body → cho phép POST để update ổn định
+    Route::post('actors/{id}', [ActorController::class, 'update']);
 
     // Gán/xóa diễn viên cho phim
     Route::post('movies/{movieId}/actors', [MovieActorController::class, 'attach']); // attach (không xoá cũ)
