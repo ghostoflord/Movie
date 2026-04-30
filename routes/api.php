@@ -16,6 +16,10 @@ use App\Http\Controllers\TaxonomyController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\RatingController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\RoleController;
+use App\Http\Controllers\PermissionController;
+use App\Http\Controllers\RolePermissionController;
+use App\Http\Controllers\UserRoleController;
 use App\Http\Controllers\RecommendationController;
 use App\Http\Controllers\ServerController;
 use App\Http\Controllers\WatchHistoryController;
@@ -86,11 +90,22 @@ Route::middleware('auth:sanctum')->group(function () { // require Authorization:
     Route::get('notifications', [NotificationController::class, 'index']); // list notifications
     Route::post('notifications/{notificationId}/read', [NotificationController::class, 'markAsRead']); // đánh dấu đã đọc
 
-    Route::get('/admin/dashboard', [DashboardController::class, 'stats']); // dashboard stats
-    Route::post('/admin/crawl-movies', [CrawlController::class, 'start']); // start crawl movies
-    Route::get('/admin/crawl-status', [CrawlController::class, 'status']); // crawl status
-    Route::post('/admin/crawl/category', [CrawlController::class, 'crawlCategory']); // crawl theo category
-    Route::post('/admin/crawl/country', [CrawlController::class, 'crawlCountry']); // crawl theo quốc gia (slug OPhim)
+    // ===== RBAC management (SUPER_ADMIN only, enforced in controller) =====
+    Route::apiResource('roles', RoleController::class);
+    Route::apiResource('permissions', PermissionController::class);
+    Route::put('roles/{roleId}/permissions', [RolePermissionController::class, 'sync']); // sync toàn bộ
+    Route::post('roles/{roleId}/permissions', [RolePermissionController::class, 'attach']); // attach thêm
+    Route::delete('roles/{roleId}/permissions/{permissionId}', [RolePermissionController::class, 'detach']); // detach 1 quyền
+    Route::put('users/{id}/role', [UserRoleController::class, 'update']); // set role cho user
+
+    // ===== Admin APIs (RBAC) =====
+    Route::middleware(\App\Http\Middleware\RbacMiddleware::class)->group(function () {
+        Route::get('/admin/dashboard', [DashboardController::class, 'stats']); // dashboard stats
+        Route::post('/admin/crawl-movies', [CrawlController::class, 'start']); // start crawl movies
+        Route::get('/admin/crawl-status', [CrawlController::class, 'status']); // crawl status
+        Route::post('/admin/crawl/category', [CrawlController::class, 'crawlCategory']); // crawl theo category
+        Route::post('/admin/crawl/country', [CrawlController::class, 'crawlCountry']); // crawl theo quốc gia (slug OPhim)
+    });
 
 
 });
