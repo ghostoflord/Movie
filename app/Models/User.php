@@ -7,10 +7,13 @@ namespace App\Models;
 use App\Enum\AuthProviderEnum;
 use App\Enum\GenderEnum;
 use App\Enum\UserRoleEnum;
+use App\Models\Permission;
+use App\Models\Role;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable
@@ -117,5 +120,58 @@ class User extends Authenticatable
         }
 
         return Storage::disk('public')->url($this->avatar);
+    }
+
+    public function isSuperAdmin(): bool
+    {
+        return $this->roleSlug() === UserRoleEnum::SUPER_ADMIN->value;
+    }
+
+    public function roleModel(): ?Role
+    {
+        $slug = $this->roleSlug();
+        if ($slug === '') {
+            return null;
+        }
+
+        return Role::query()->where('slug', $slug)->first();
+    }
+
+    public function roleSlug(): string
+    {
+        $role = $this->role;
+        if ($role instanceof UserRoleEnum) {
+            return $role->value;
+        }
+
+        return (string) $role;
+    }
+
+    public function hasPermission(string $method, string $apiPath): bool
+    {
+        if ($this->isSuperAdmin()) {
+            return true;
+        }
+
+        $role = $this->roleModel();
+        if (! $role) {
+            return false;
+        }
+
+        $method = strtoupper($method);
+        $apiPath = ltrim($apiPath, '/');
+
+        return $role->permissions()
+            ->where(function ($q) use ($method) {
+                $q->where('method', $method)->orWhere('method', '*');
+            })
+            ->get()
+            ->contains(function (Permission $p) use ($apiPath): bool {
+                $pattern = ltrim((string) $p->api_path, '/');
+                if ($pattern === '') {
+                    return false;
+                }
+                return Str::is($pattern, $apiPath);
+            });
     }
 }
