@@ -95,7 +95,6 @@ Route::middleware('auth:sanctum')->group(function () { // require Authorization:
     Route::apiResource('permissions', PermissionController::class);
     Route::put('roles/{roleId}/permissions', [RolePermissionController::class, 'sync']); // sync toàn bộ
     Route::post('roles/{roleId}/permissions', [RolePermissionController::class, 'attach']); // attach thêm
-    Route::delete('roles/{roleId}/permissions/{permissionId}', [RolePermissionController::class, 'detach']); // detach 1 quyền
     Route::put('users/{id}/role', [UserRoleController::class, 'update']); // set role cho user
 
     // ===== Admin APIs (RBAC) =====

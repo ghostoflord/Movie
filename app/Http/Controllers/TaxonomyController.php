@@ -13,7 +13,7 @@ class TaxonomyController extends Controller
 {
     public function genres(Request $request)
     {
-        $perPage = max(1, min((int) $request->query('per_page', 100), 500);
+        $perPage = max(1, min((int) $request->query('per_page', 100), 500));
         $paginator = Category::query()->orderBy('name')->paginate($perPage);
 
         return response()->json([
@@ -29,7 +29,7 @@ class TaxonomyController extends Controller
 
     public function countries(Request $request)
     {
-        $perPage = max(1, min((int) $request->query('per_page', 100), 500);
+        $perPage = max(1, min((int) $request->query('per_page', 100), 500));
         $paginator = Country::query()->orderBy('name')->paginate($perPage);
 
         return response()->json([

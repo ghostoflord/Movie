@@ -21,5 +21,8 @@ class DatabaseSeeder extends Seeder
             'name' => 'Test User',
             'email' => 'test@example.com',
         ]);
+
+        // Quyền theo route có auth:sanctum (xem RbacSanctumRoutePermissionSeeder).
+        $this->call(RbacSanctumRoutePermissionSeeder::class);
     }
 }
