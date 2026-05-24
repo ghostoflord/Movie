@@ -31,6 +31,8 @@ class RbacMiddleware
             'details' => [
                 'method' => $method,
                 'path' => $path,
+                'role' => method_exists($user, 'roleSlug') ? $user->roleSlug() : null,
+                'hint' => 'SUPER_ADMIN bypass RBAC; ADMIN cần permission khớp method+path. Kiểm tra cột users.role.',
             ],
         ], 403);
     }
