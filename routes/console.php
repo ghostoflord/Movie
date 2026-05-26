@@ -2,6 +2,7 @@
 
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Schedule;
 use App\Models\Movie;
 use App\Services\OphimMovieActorSync;
 
@@ -36,3 +37,5 @@ Artisan::command('backfill:actors {--chunk=200} {--only-missing}', function () {
 
     $this->info("Processed movies: {$done}");
 })->purpose('Backfill actors + actor_movie from movies.actors JSON');
+
+Schedule::command('vip:expire')->hourly();

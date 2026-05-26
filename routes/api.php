@@ -23,6 +23,7 @@ use App\Http\Controllers\UserRoleController;
 use App\Http\Controllers\RecommendationController;
 use App\Http\Controllers\ServerController;
 use App\Http\Controllers\WatchHistoryController;
+use App\Http\Controllers\VnpayController;
 use Illuminate\Support\Facades\Route;
 
 Route::post('/login', [AuthController::class, 'login']); // đăng nhập -> trả Bearer token
@@ -96,6 +97,11 @@ Route::middleware('auth:sanctum')->group(function () { // require Authorization:
     Route::put('roles/{roleId}/permissions', [RolePermissionController::class, 'sync']); // sync toàn bộ
     Route::post('roles/{roleId}/permissions', [RolePermissionController::class, 'attach']); // attach thêm
     Route::put('users/{id}/role', [UserRoleController::class, 'update']); // set role cho user
+
+    Route::get('/vnpay/plans', [VnpayController::class, 'plans']); // danh sách gói VNPay
+    Route::post('/vnpay/create-payment', [VnpayController::class, 'createPayment']); // tạo thanh toán VNPay
+    Route::get('/vnpay/history', [VnpayController::class, 'history']); // lịch sử thanh toán
+
 
     // ===== Admin APIs (RBAC) =====
     Route::middleware(\App\Http\Middleware\RbacMiddleware::class)->group(function () {

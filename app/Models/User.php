@@ -32,6 +32,7 @@ class User extends Authenticatable
         'password',
         'active',
         'role',
+        'vip_expires_at',
         'gender',
         'provider',
         'avatar',
@@ -70,6 +71,7 @@ class User extends Authenticatable
     {
         return [
             'email_verified_at' => 'datetime',
+            'vip_expires_at' => 'datetime',
             'password' => 'hashed',
 
             // enum
@@ -102,6 +104,20 @@ class User extends Authenticatable
     public function notifications()
     {
         return $this->hasMany(Notification::class);
+    }
+
+    public function vnpayTransactions()
+    {
+        return $this->hasMany(VnpayTransaction::class);
+    }
+
+    public function isVipActive(): bool
+    {
+        if ($this->roleSlug() !== UserRoleEnum::VIP->value) {
+            return false;
+        }
+
+        return $this->vip_expires_at !== null && $this->vip_expires_at->isFuture();
     }
 
     /**
