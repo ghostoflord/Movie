@@ -73,7 +73,7 @@ class MovieController extends Controller
     // GET /api/movies/{id}
     public function show($id)
     {
-        $movie = Movie::with(['episodes', 'comments', 'movieCategories', 'movieCountries', 'movieActors'])->findOrFail($id);
+        $movie = Movie::with(['episodes', 'comments.user', 'movieCategories', 'movieCountries', 'movieActors'])->findOrFail($id);
 
         return response()->json([
             'data' => new MovieResource($movie),

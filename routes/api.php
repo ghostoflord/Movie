@@ -43,6 +43,8 @@ Route::get('/episodes/{id}', [EpisodeController::class, 'show']); // chi tiết 
 Route::put('/episodes/{id}', [EpisodeController::class, 'update']); // cập nhật episode (public)
 Route::delete('/episodes/{id}', [EpisodeController::class, 'destroy']); // xoá episode (public)
 Route::get('/movies/{movieId}/episodes', [EpisodeController::class, 'getByMovie']); // episodes theo movie (public)
+Route::get('/movies/{movieId}/comments', [CommentController::class, 'indexByMovie']); // danh sách comment theo phim (public)
+Route::get('/comments', [CommentController::class, 'index']); // danh sách comment (?movie_id= &episode_id=) (public)
 
 Route::apiResource('movies', MovieController::class); // CRUD movies (public)
 

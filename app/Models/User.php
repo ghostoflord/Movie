@@ -131,8 +131,12 @@ class User extends Authenticatable
     /** URL đầy đủ để hiển thị ảnh (cần `php artisan storage:link`). */
     public function getAvatarUrlAttribute(): ?string
     {
-        if (!$this->avatar) {
+        if (! $this->avatar) {
             return null;
+        }
+
+        if (str_starts_with((string) $this->avatar, 'http://') || str_starts_with((string) $this->avatar, 'https://')) {
+            return $this->avatar;
         }
 
         return Storage::disk('public')->url($this->avatar);
