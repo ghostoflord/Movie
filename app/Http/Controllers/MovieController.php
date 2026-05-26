@@ -13,6 +13,12 @@ class MovieController extends Controller
     // GET /api/movies
     public function index(Request $request)
     {
+        $request->validate([
+            'page' => 'nullable|integer|min:1',
+            'per_page' => 'nullable|integer|min:1|max:100',
+            'name' => 'nullable|string|max:255',
+        ]);
+
         // Lấy page và per_page từ request, có giá trị mặc định
         $perPage = $request->query('per_page', 10); // Mặc định 10
         $page = $request->query('page', 1); // Mặc định trang 1
@@ -21,8 +27,18 @@ class MovieController extends Controller
         $perPage = min($perPage, 100);
         $perPage = max($perPage, 1); // Đảm bảo ít nhất 1
 
-        $movies = Movie::with(['episodes', 'movieCategories', 'movieCountries', 'movieActors'])
-            ->paginate($perPage, ['*'], 'page', $page);
+        $query = Movie::query()->with(['episodes', 'movieCategories', 'movieCountries', 'movieActors']);
+
+        $name = trim((string) $request->query('name', ''));
+        if ($name !== '') {
+            $query->where(function ($q) use ($name) {
+                $q->where('name', 'like', '%'.$name.'%')
+                    ->orWhere('origin_name', 'like', '%'.$name.'%')
+                    ->orWhere('slug', 'like', '%'.$name.'%');
+            });
+        }
+
+        $movies = $query->paginate($perPage, ['*'], 'page', $page);
 
         return response()->json([
             'data' => MovieResource::collection($movies->items()),
