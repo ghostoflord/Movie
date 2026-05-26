@@ -84,6 +84,7 @@ class AuthController extends Controller
         $email = $payload['email'] ?? null;
         $emailVerified = filter_var($payload['email_verified'] ?? false, FILTER_VALIDATE_BOOL);
         $name = $payload['name'] ?? null;
+        $picture = $payload['picture'] ?? null;
 
         if ($aud !== $googleClientId) {
             return response()->json([
@@ -111,6 +112,7 @@ class AuthController extends Controller
                 'email'             => $email,
                 'password'          => Str::random(32), // will be hashed via casts
                 'provider'          => 'GOOGLE',
+                'avatar'            => $picture,
                 'active'            => true,
                 'email_verified_at' => now(),
             ]);
@@ -118,6 +120,7 @@ class AuthController extends Controller
             // Nếu user tồn tại nhưng chưa active/verify thì đồng bộ theo Google
             $user->update([
                 'provider'          => $user->provider ?: 'GOOGLE',
+                'avatar'            => $user->avatar ?: $picture,
                 'active'            => true,
                 'email_verified_at' => $user->email_verified_at ?: now(),
             ]);
