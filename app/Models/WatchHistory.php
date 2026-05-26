@@ -19,6 +19,8 @@ class WatchHistory extends Model
     protected function casts(): array
     {
         return [
+            'current_time' => 'integer',
+            'duration_watched' => 'integer',
             'last_watched_at' => 'datetime',
         ];
     }

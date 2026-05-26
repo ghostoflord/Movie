@@ -91,7 +91,17 @@ Route::middleware('auth:sanctum')->group(function () { // require Authorization:
     Route::post('/favorites/{movieId}', [FavoriteController::class, 'toggle']); // toggle favorite
     Route::put('/favorites/{movieId}', [FavoriteController::class, 'update']); // update favorite (pivot)
 
-    Route::post('watch-history', [WatchHistoryController::class, 'store']); // lưu tiến độ xem (episode_id)
+    // Lịch sử xem phim (auth) — đặt route cụ thể trước {id}
+    Route::get('watch-history/continue', [WatchHistoryController::class, 'continueWatching']); // danh sách tiếp tục xem (1 phim = 1 tập gần nhất)
+    Route::get('watch-history', [WatchHistoryController::class, 'index']); // danh sách (?group_by=movie, ?movie_id=)
+    Route::delete('watch-history/clear', [WatchHistoryController::class, 'clear']); // xóa toàn bộ
+    Route::get('watch-history/episode/{episodeId}', [WatchHistoryController::class, 'showByEpisode']); // resume tập
+    Route::get('watch-history/movie/{movieId}', [WatchHistoryController::class, 'showByMovie']); // tiến độ mới nhất theo phim
+    Route::delete('watch-history/movie/{movieId}', [WatchHistoryController::class, 'destroyByMovie']); // xóa theo phim
+    Route::get('watch-history/{id}', [WatchHistoryController::class, 'show']);
+    Route::put('watch-history/{id}', [WatchHistoryController::class, 'update']);
+    Route::delete('watch-history/{id}', [WatchHistoryController::class, 'destroy']);
+    Route::post('watch-history', [WatchHistoryController::class, 'store']); // lưu / cập nhật tiến độ (upsert)
     Route::get('recommendations', [RecommendationController::class, 'forYou']); // gợi ý phim theo thể loại
 
     Route::get('notifications', [NotificationController::class, 'index']); // list notifications
