@@ -32,6 +32,7 @@ class User extends Authenticatable
         'password',
         'active',
         'role',
+        'vip_expires_at',
         'gender',
         'provider',
         'avatar',
@@ -70,6 +71,7 @@ class User extends Authenticatable
     {
         return [
             'email_verified_at' => 'datetime',
+            'vip_expires_at' => 'datetime',
             'password' => 'hashed',
 
             // enum
@@ -104,6 +106,20 @@ class User extends Authenticatable
         return $this->hasMany(Notification::class);
     }
 
+    public function vnpayTransactions()
+    {
+        return $this->hasMany(VnpayTransaction::class);
+    }
+
+    public function isVipActive(): bool
+    {
+        if ($this->roleSlug() !== UserRoleEnum::VIP->value) {
+            return false;
+        }
+
+        return $this->vip_expires_at !== null && $this->vip_expires_at->isFuture();
+    }
+
     /**
      * Đồng bộ với Laravel MustVerifyEmail: chỉ tin vào `email_verified_at`.
      */
@@ -124,6 +140,11 @@ class User extends Authenticatable
 
     public function isSuperAdmin(): bool
     {
+        $role = $this->role;
+        if ($role instanceof UserRoleEnum) {
+            return $role === UserRoleEnum::SUPER_ADMIN;
+        }
+
         return $this->roleSlug() === UserRoleEnum::SUPER_ADMIN->value;
     }
 
@@ -144,7 +165,19 @@ class User extends Authenticatable
             return $role->value;
         }
 
-        return (string) $role;
+        $raw = $this->getRawOriginal('role');
+        if ($raw === null || $raw === '') {
+            return '';
+        }
+
+        $normalized = strtoupper(str_replace([' ', '-'], '_', trim((string) $raw)));
+
+        // Một số giá trị lệch chuẩn vẫn coi là SUPER_ADMIN
+        if (in_array($normalized, ['SUPERADMIN', 'SUPER_ADIM'], true)) {
+            return UserRoleEnum::SUPER_ADMIN->value;
+        }
+
+        return UserRoleEnum::tryFrom($normalized)?->value ?? $normalized;
     }
 
     public function hasPermission(string $method, string $apiPath): bool

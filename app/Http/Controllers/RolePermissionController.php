@@ -52,19 +52,5 @@ class RolePermissionController extends Controller
             'data' => $role->load('permissions'),
         ]);
     }
-
-    // DELETE /api/roles/{roleId}/permissions/{permissionId}
-    public function detach(Request $request, string $roleId, string $permissionId)
-    {
-        $this->ensureSuperAdmin($request);
-
-        $role = Role::query()->findOrFail($roleId);
-        $role->permissions()->detach((int) $permissionId);
-
-        return response()->json([
-            'message' => 'Permission detached',
-            'data' => $role->load('permissions'),
-        ]);
-    }
 }
 

@@ -23,6 +23,7 @@ use App\Http\Controllers\UserRoleController;
 use App\Http\Controllers\RecommendationController;
 use App\Http\Controllers\ServerController;
 use App\Http\Controllers\WatchHistoryController;
+use App\Http\Controllers\VnpayController;
 use Illuminate\Support\Facades\Route;
 
 Route::post('/login', [AuthController::class, 'login']); // đăng nhập -> trả Bearer token
@@ -57,6 +58,10 @@ Route::get('/ophim/quoc-gia/{slug}', [OphimCatalogController::class, 'quocGiaByS
 // Thể loại / quốc gia đã lưu DB (bảng categories, countries + pivot)
 Route::get('/taxonomy/genres', [TaxonomyController::class, 'genres']);
 Route::get('/taxonomy/countries', [TaxonomyController::class, 'countries']);
+
+// VNPay — public (VNPay redirect browser, không gửi Bearer token)
+Route::get('/vnpay/return', [VnpayController::class, 'return']);
+Route::get('/vnpay/callback', [VnpayController::class, 'callback']);
 
 Route::middleware('auth:sanctum')->group(function () { // require Authorization: Bearer <token>
     Route::get('/user', [AuthController::class, 'user']); // lấy thông tin user hiện tại
@@ -95,8 +100,12 @@ Route::middleware('auth:sanctum')->group(function () { // require Authorization:
     Route::apiResource('permissions', PermissionController::class);
     Route::put('roles/{roleId}/permissions', [RolePermissionController::class, 'sync']); // sync toàn bộ
     Route::post('roles/{roleId}/permissions', [RolePermissionController::class, 'attach']); // attach thêm
-    Route::delete('roles/{roleId}/permissions/{permissionId}', [RolePermissionController::class, 'detach']); // detach 1 quyền
     Route::put('users/{id}/role', [UserRoleController::class, 'update']); // set role cho user
+
+    Route::get('/vnpay/plans', [VnpayController::class, 'plans']); // danh sách gói VNPay
+    Route::post('/vnpay/create-payment', [VnpayController::class, 'createPayment']); // tạo thanh toán VNPay
+    Route::get('/vnpay/history', [VnpayController::class, 'history']); // lịch sử thanh toán
+
 
     // ===== Admin APIs (RBAC) =====
     Route::middleware(\App\Http\Middleware\RbacMiddleware::class)->group(function () {
