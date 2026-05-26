@@ -94,70 +94,158 @@ class VnpayController extends Controller
         ]);
     }
 
+    /**
+     * VNPay redirect trình duyệt về đây (Return URL).
+     * Backend: verify chữ ký → cập nhật payments + VIP → redirect FE.
+     *
+     * .env: VNPAY_RETURN_URL=http://localhost:8080/vnpay-return
+     */
+    public function return(Request $request)
+    {
+        $result = $this->processVnpayReturn($request->all());
+
+        $payload = [
+            'success' => $result['ok'],
+            'order_id' => $result['order_id'] ?? '',
+            'vnp_ResponseCode' => $result['response_code'] ?? '',
+            'message' => $result['message'] ?? '',
+            'payment' => $result['payment'],
+        ];
+
+        if (! config('vnpay.redirect_to_frontend', false)) {
+            return response()->json(['data' => $payload]);
+        }
+
+        $frontend = rtrim((string) config('vnpay.frontend_url', 'http://localhost:3000'), '/');
+        $query = http_build_query([
+            'success' => $result['ok'] ? '1' : '0',
+            'order_id' => $payload['order_id'],
+            'vnp_ResponseCode' => $payload['vnp_ResponseCode'],
+            'message' => $payload['message'],
+        ]);
+
+        return redirect($frontend.'/vnpay-return?'.$query);
+    }
+
+    /**
+     * FE (localhost:3000) có thể gọi API này với full query VNPay trả về (JSON).
+     * Hoặc dùng GET /api/vnpay/return để backend tự xử lý + redirect.
+     */
     public function callback(Request $request)
     {
-        $vnpHashSecret = (string) config('vnpay.hash_secret');
-        $inputData = $request->all();
-        $vnpSecureHash = $inputData['vnp_SecureHash'] ?? '';
+        $result = $this->processVnpayReturn($request->all());
 
-        unset($inputData['vnp_SecureHash'], $inputData['vnp_SecureHashType']);
-        ksort($inputData);
+        if (! $result['ok'] && ($result['reason'] ?? '') === 'invalid_hash') {
+            return response()->json(['message' => 'Invalid signature'], 400);
+        }
+
+        if (! $result['payment']) {
+            return response()->json(['message' => 'Payment not found'], 404);
+        }
+
+        $status = $result['ok'] ? 'success' : 'failed';
+
+        return response()->json([
+            'data' => [
+                'status' => $status,
+                'message' => $result['message'],
+                'payment' => $result['payment'],
+            ],
+        ]);
+    }
+
+    /**
+     * @return array{ok: bool, message: string, payment: ?Payment, order_id: ?string, response_code: ?string, reason?: string}
+     */
+    private function processVnpayReturn(array $input): array
+    {
+        $vnpHashSecret = (string) config('vnpay.hash_secret');
+        $vnpSecureHash = (string) ($input['vnp_SecureHash'] ?? '');
+
+        $verifyData = $input;
+        unset($verifyData['vnp_SecureHash'], $verifyData['vnp_SecureHashType']);
+        ksort($verifyData);
 
         $hashData = '';
         $i = 0;
-        foreach ($inputData as $key => $value) {
-            if ($i == 1) {
-                $hashData .= '&' . urlencode($key) . '=' . urlencode($value);
+        foreach ($verifyData as $key => $value) {
+            if ($value === '' || $value === null) {
+                continue;
+            }
+            if ($i === 1) {
+                $hashData .= '&'.urlencode((string) $key).'='.urlencode((string) $value);
             } else {
-                $hashData .= urlencode($key) . '=' . urlencode($value);
+                $hashData .= urlencode((string) $key).'='.urlencode((string) $value);
                 $i = 1;
             }
         }
 
         $secureHash = hash_hmac('sha512', $hashData, $vnpHashSecret);
 
-        $orderId = $inputData['vnp_TxnRef'] ?? '';
-        $responseCode = $inputData['vnp_ResponseCode'] ?? '';
-        $transactionNo = $inputData['vnp_TransactionNo'] ?? '';
+        $orderId = (string) ($input['vnp_TxnRef'] ?? '');
+        $responseCode = (string) ($input['vnp_ResponseCode'] ?? '');
+        $transactionNo = (string) ($input['vnp_TransactionNo'] ?? '');
 
         $payment = Payment::where('order_id', $orderId)->first();
 
-        if (!$payment) {
-            return response()->json(['message' => 'Payment not found'], 404);
+        if (! $payment) {
+            return [
+                'ok' => false,
+                'message' => 'Không tìm thấy đơn thanh toán',
+                'payment' => null,
+                'order_id' => $orderId,
+                'response_code' => $responseCode,
+            ];
         }
 
-        if ($secureHash !== $vnpSecureHash) {
+        if (! hash_equals($secureHash, $vnpSecureHash)) {
             $payment->update(['status' => 'failed', 'vnp_response_code' => 'INVALID_HASH']);
-            return response()->json(['message' => 'Invalid signature'], 400);
+
+            return [
+                'ok' => false,
+                'message' => 'Chữ ký không hợp lệ',
+                'payment' => $payment->fresh(),
+                'order_id' => $orderId,
+                'response_code' => $responseCode,
+                'reason' => 'invalid_hash',
+            ];
         }
 
         if ($responseCode === '00') {
-            $payment->update([
-                'status' => 'success',
-                'vnp_transaction_no' => $transactionNo,
-                'vnp_response_code' => $responseCode,
-                'paid_at' => now(),
-            ]);
-
-            $plan = self::PLANS[$payment->plan] ?? null;
-            if ($plan) {
-                $user = User::find($payment->user_id);
-                $currentExpiry = $user->vip_expires_at && $user->vip_expires_at->isFuture()
-                    ? $user->vip_expires_at
-                    : now();
-                $user->update([
-                    'vip_expires_at' => $currentExpiry->addDays($plan['days']),
-                    'role' => 'VIP',
+            if ($payment->status !== 'success') {
+                $payment->update([
+                    'status' => 'success',
+                    'vnp_transaction_no' => $transactionNo,
+                    'vnp_response_code' => $responseCode,
+                    'paid_at' => now(),
                 ]);
+
+                $plan = self::PLANS[$payment->plan] ?? null;
+                if ($plan) {
+                    $user = User::find($payment->user_id);
+                    if ($user) {
+                        $currentExpiry = $user->vip_expires_at && $user->vip_expires_at->isFuture()
+                            ? $user->vip_expires_at->copy()
+                            : now();
+                        $updates = [
+                            'vip_expires_at' => $currentExpiry->addDays($plan['days']),
+                        ];
+                        $protected = config('vnpay.protected_roles', ['ADMIN', 'SUPER_ADMIN']);
+                        if (! in_array($user->roleSlug(), $protected, true)) {
+                            $updates['role'] = config('vnpay.vip_role', 'VIP');
+                        }
+                        $user->update($updates);
+                    }
+                }
             }
 
-            return response()->json([
-                'data' => [
-                    'status' => 'success',
-                    'message' => 'Thanh toán thành công! Tài khoản đã được nâng cấp VIP.',
-                    'payment' => $payment->fresh(),
-                ],
-            ]);
+            return [
+                'ok' => true,
+                'message' => 'Thanh toán thành công! Tài khoản đã được nâng cấp VIP.',
+                'payment' => $payment->fresh(),
+                'order_id' => $orderId,
+                'response_code' => $responseCode,
+            ];
         }
 
         $payment->update([
@@ -166,13 +254,13 @@ class VnpayController extends Controller
             'vnp_response_code' => $responseCode,
         ]);
 
-        return response()->json([
-            'data' => [
-                'status' => 'failed',
-                'message' => 'Thanh toán thất bại. Mã lỗi: ' . $responseCode,
-                'payment' => $payment->fresh(),
-            ],
-        ]);
+        return [
+            'ok' => false,
+            'message' => 'Thanh toán thất bại. Mã lỗi: '.$responseCode,
+            'payment' => $payment->fresh(),
+            'order_id' => $orderId,
+            'response_code' => $responseCode,
+        ];
     }
 
     public function history(Request $request)

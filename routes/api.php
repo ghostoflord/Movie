@@ -59,6 +59,10 @@ Route::get('/ophim/quoc-gia/{slug}', [OphimCatalogController::class, 'quocGiaByS
 Route::get('/taxonomy/genres', [TaxonomyController::class, 'genres']);
 Route::get('/taxonomy/countries', [TaxonomyController::class, 'countries']);
 
+// VNPay — public (VNPay redirect browser, không gửi Bearer token)
+Route::get('/vnpay/return', [VnpayController::class, 'return']);
+Route::get('/vnpay/callback', [VnpayController::class, 'callback']);
+
 Route::middleware('auth:sanctum')->group(function () { // require Authorization: Bearer <token>
     Route::get('/user', [AuthController::class, 'user']); // lấy thông tin user hiện tại
     Route::post('/logout', [AuthController::class, 'logout']); // logout (xóa token)
