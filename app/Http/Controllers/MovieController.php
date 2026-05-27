@@ -15,7 +15,8 @@ class MovieController extends Controller
     {
         $request->validate([
             'page' => 'nullable|integer|min:1',
-            'per_page' => 'nullable|integer|min:1|max:100',
+            // Cho phép FE truyền lớn hơn, backend sẽ tự clamp về 100 để tránh 422.
+            'per_page' => 'nullable|integer|min:1|max:1000',
             'name' => 'nullable|string|max:255',
         ]);
 
